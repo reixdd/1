@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>JARVIS Market Intelligence Workbench</title>
+  <link rel="stylesheet" href="/workbench-assets/styles.css">
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <div id="boot" class="boot-screen">
+    <pre class="boot-cat"> /\_/\\
+( o.o )  JARVIS
+ &gt; ^ &lt;</pre>
+    <div>CONNECTING TO LOCAL RESEARCH CORE<span class="blink">_</span></div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-glyph">J</div>
+        <div>
+          <strong>JARVIS</strong>
+          <small>MARKET INTELLIGENCE WORKBENCH</small>
+        </div>
+      </div>
+      <div class="status-cluster" aria-live="polite">
+        <span id="coreStatus" class="status"><i></i> CORE</span>
+        <span id="gmgnStatus" class="status"><i></i> GMGN</span>
+        <span id="ollamaStatus" class="status"><i></i> OLLAMA</span>
+        <span id="clock" class="clock">--:--:--</span>
+      </div>
+      <div class="top-actions">
+        <button id="alertsButton" class="tool-button">ALERTS</button>
+        <button id="soundButton" class="tool-button">SOUND OFF</button>
+        <button id="systemButton" class="tool-button">SYSTEM</button>
+      </div>
+    </header>
+
+    <div class="safety-strip">
+      <span>RESEARCH ONLY</span>
+      <span>TRANSACTIONS DISABLED</span>
+      <span id="systemLine">INITIALIZING CANONICAL MARKET STATE</span>
+      <span class="cat-line" id="catLine">[=^._.^=] watching the tape</span>
+    </div>
+
+    <main class="workbench">
+      <aside class="radar pane">
+        <div class="pane-title">
+          <div><span class="index">01</span> MARKET RADAR</div>
+          <span id="radarCount">0 LIVE</span>
+        </div>
+        <form id="searchForm" class="search-row">
+          <select id="searchChain" aria-label="Chain">
+            <option value="sol">SOL</option><option value="base">BASE</option>
+            <option value="eth">ETH</option><option value="bsc">BSC</option>
+          </select>
+          <input id="searchInput" placeholder="symbol / contract" autocomplete="off" spellcheck="false">
+          <button type="submit" title="Search">↗</button>
+        </form>
+        <div class="radar-tabs" role="tablist">
+          <button class="active" data-radar-tab="core">LIVE</button>
+          <button data-radar-tab="surging">SURGING</button>
+          <button data-radar-tab="watched">WATCHED</button>
+          <button data-radar-tab="gmgn-hot">GMGN HOT</button>
+          <button data-radar-tab="gmgn-new">GMGN NEW</button>
+        </div>
+        <div class="radar-head"><span>TOKEN</span><span>MC / LIQ</span><span>WHY</span></div>
+        <div id="radarList" class="radar-list"><div class="empty">Waiting for canonical market observations…</div></div>
+        <div class="radar-foot">
+          <span id="radarFoot">Attention ordering is for research triage, not a trading score.</span>
+        </div>
+      </aside>
+
+      <section class="workspace pane">
+        <div class="pane-title token-titlebar">
+          <div><span class="index">02</span> TOKEN WORKSPACE</div>
+          <div class="token-actions">
+            <button id="watchButton" class="mini" disabled>☆ WATCH</button>
+            <button id="copyButton" class="mini" disabled>COPY CA</button>
+            <button id="dexButton" class="mini" disabled>DEX ↗</button>
+            <button id="xButton" class="mini" disabled>X SEARCH ↗</button>
+          </div>
+        </div>
+
+        <div id="noSelection" class="no-selection">
+          <div class="radar-orbit"><i></i><i></i><i></i></div>
+          <h1>JARVIS IS WATCHING.</h1>
+          <p>Select a live market from the radar. JARVIS will assemble the market tape, Quant state, prospective research, security evidence, entity relationships and social context into one dossier.</p>
+          <small>The Core keeps researching even when this Chrome tab is closed.</small>
+        </div>
+
+        <div id="tokenView" class="token-view hidden">
+          <section class="token-hero">
+            <div class="token-id">
+              <div id="tokenMonogram" class="monogram">?</div>
+              <div>
+                <div class="token-name-line"><h1 id="tokenSymbol">—</h1><span id="tokenChain" class="chain">—</span></div>
+                <div id="tokenName" class="token-name">—</div>
+                <button id="contractButton" class="contract" type="button">—</button>
+              </div>
+            </div>
+            <div id="tokenState" class="token-state">LIVE RESEARCH</div>
+          </section>
+
+          <section class="market-grid">
+            <div><span>MARKET CAP</span><b id="mc">—</b><small id="mcDelta">&nbsp;</small></div>
+            <div><span>LIQUIDITY</span><b id="liq">—</b><small id="liqDelta">&nbsp;</small></div>
+            <div><span>5M VOLUME</span><b id="vol5">—</b><small id="turnover">&nbsp;</small></div>
+            <div><span>BUYS / SELLS</span><b id="txns">—</b><small id="imbalance">&nbsp;</small></div>
+            <div><span>AGE</span><b id="age">—</b><small id="freshness">&nbsp;</small></div>
+            <div><span>RANK</span><b id="rank">—</b><small id="rankVel">&nbsp;</small></div>
+          </section>
+
+          <section class="chart-section">
+            <div class="section-head"><span>LIVE MARKET TAPE</span><div><button id="chartMc" class="chip active">MC</button><button id="chartPrice" class="chip">PRICE</button><button id="gmgnEnrich" class="chip">GMGN ENRICH</button></div></div>
+            <div id="chart" class="chart"><div class="empty">Collecting local observations…</div></div>
+          </section>
+
+          <section class="jarvis-brief">
+            <div class="section-head"><span>JARVIS BRIEF</span><span id="briefTime">—</span></div>
+            <div class="brief-grid">
+              <div><h3>WHAT CHANGED</h3><ul id="changed"></ul></div>
+              <div><h3>SUPPORT</h3><ul id="support"></ul></div>
+              <div><h3>COUNTER-EVIDENCE</h3><ul id="counter"></ul></div>
+              <div><h3>UNKNOWN</h3><ul id="unknown"></ul></div>
+            </div>
+          </section>
+
+          <nav class="workspace-tabs">
+            <button class="active" data-work-tab="overview">OVERVIEW</button>
+            <button data-work-tab="security">SECURITY</button>
+            <button data-work-tab="graph">RELATIONSHIPS</button>
+            <button data-work-tab="social">SOCIAL</button>
+            <button data-work-tab="research">RESEARCH</button>
+            <button data-work-tab="gmgn">GMGN</button>
+          </nav>
+          <section id="detailPanel" class="detail-panel"></section>
+        </div>
+      </section>
+
+      <aside class="jarvis pane">
+        <div class="pane-title">
+          <div><span class="index">03</span> JARVIS</div>
+          <span id="jarvisModeLabel">LOCAL AGENT TEAM</span>
+        </div>
+        <div class="jarvis-presence">
+          <div class="eye" aria-hidden="true"><span></span></div>
+          <div><strong id="jarvisPresence">ONLINE</strong><small id="selectedContext">NO TOKEN SELECTED</small></div>
+          <button id="speakButton" class="mini" title="Read JARVIS replies aloud">VOICE OFF</button>
+        </div>
+        <div id="chatLog" class="chat-log" aria-live="polite">
+          <div class="message jarvis-msg"><b>JARVIS</b><p>Market research core is live. Select a token or ask what changed.</p></div>
+        </div>
+        <form id="chatForm" class="chat-form">
+          <div class="chat-controls">
+            <select id="chatMode"><option value="fast">FAST</option><option value="deep">DEEP</option></select>
+            <span id="chatState">READY</span>
+          </div>
+          <div class="chat-input-row">
+            <button id="micButton" type="button" class="mic" title="Talk to JARVIS">●</button>
+            <textarea id="chatInput" rows="2" placeholder="Ask JARVIS…" maxlength="6000"></textarea>
+            <button type="submit" class="send">SEND ↗</button>
+          </div>
+          <div class="quick-prompts">
+            <button type="button" data-prompt="What changed in the last few minutes?">WHAT CHANGED?</button>
+            <button type="button" data-prompt="What is the strongest counter-evidence on this token?">SKEPTIC</button>
+            <button type="button" data-prompt="What evidence is still missing here?">MISSING DATA</button>
+          </div>
+        </form>
+      </aside>
+    </main>
+
+    <section class="activity-bar">
+      <div class="activity-label">LIVE ACTIVITY</div>
+      <div id="activity" class="activity"><span>Waiting for semantic changes…</span></div>
+      <button id="activityExpand">OPEN LOG</button>
+    </section>
+
+    <div id="systemDrawer" class="drawer hidden">
+      <div class="drawer-head"><strong>SYSTEM HEALTH / DIAGNOSTICS</strong><button data-close="systemDrawer">×</button></div>
+      <div id="systemContent" class="drawer-content">Loading…</div>
+    </div>
+
+    <div id="activityDrawer" class="drawer hidden">
+      <div class="drawer-head"><strong>ATTENTION / ACTIVITY LOG</strong><button data-close="activityDrawer">×</button></div>
+      <div id="activityContent" class="drawer-content"></div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+  <script type="module" src="/workbench-assets/app.js"></script>
+</body>
+</html>

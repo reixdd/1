@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Minimal JARVIS desktop capability. System integrations stay on the Rust side.",
+  "windows": ["main", "compact"],
+  "permissions": ["core:default"]
+}

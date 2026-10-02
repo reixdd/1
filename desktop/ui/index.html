@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JARVIS Market Intelligence</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="shell" class="shell">
+    <header class="topline">
+      <div class="brand"><span class="brand-mark">J</span><span>JARVIS</span><small>MARKET INTELLIGENCE</small></div>
+      <div class="top-metrics">
+        <span><i id="core-dot" class="status-dot"></i><b id="core-state">CORE</b></span>
+        <span>OBS <b id="m-obs">—</b></span>
+        <span>QUANT <b id="m-quant">—</b></span>
+        <span>LABELS <b id="m-labels">—</b></span>
+      </div>
+      <div class="top-actions">
+        <button id="autostart-btn" class="flat-button">AUTOSTART —</button>
+        <button id="compact-btn" class="flat-button">COMPACT</button>
+        <button id="hide-btn" class="flat-button">HIDE</button>
+      </div>
+    </header>
+
+    <main id="workspace" class="workspace">
+      <section class="desk-window window-attention" data-window="attention">
+        <div class="window-bar"><span>01 / ATTENTION</span><span class="window-meta">SEMANTIC ONLY</span></div>
+        <div class="window-body">
+          <div id="attention-feed" class="attention-feed"><div class="empty">WAITING FOR SEMANTIC CHANGES</div></div>
+        </div>
+      </section>
+
+      <section class="desk-window window-pipeline" data-window="pipeline">
+        <div class="window-bar"><span>02 / NERVOUS SYSTEM</span><span class="window-meta" id="pipeline-live">—</span></div>
+        <div class="window-body metrics-grid" id="pipeline-grid"></div>
+      </section>
+
+      <section class="desk-window window-research" data-window="research">
+        <div class="window-bar"><span>03 / PROSPECTIVE LAB</span><span class="window-meta">NO RETROACTIVE LABELS</span></div>
+        <div class="window-body">
+          <div class="big-row"><div><em>EXPERIMENTS</em><strong id="r-exp">—</strong></div><div><em>FORWARD MARKS</em><strong id="r-marks">—</strong></div><div><em>LEARNED</em><strong id="r-learned">—</strong></div></div>
+          <div class="rule"></div>
+          <div class="kv" id="research-details"></div>
+        </div>
+      </section>
+
+      <section class="desk-window window-evidence" data-window="evidence">
+        <div class="window-bar"><span>04 / EVIDENCE</span><span class="window-meta">CONFLICTS PRESERVED</span></div>
+        <div class="window-body">
+          <div class="big-row"><div><em>SECURITY</em><strong id="e-security">—</strong></div><div><em>GRAPH EDGES</em><strong id="e-edges">—</strong></div><div><em>MEMORY</em><strong>STRUCTURED</strong></div></div>
+          <div class="rule"></div>
+          <div class="kv" id="evidence-details"></div>
+        </div>
+      </section>
+
+      <section class="desk-window window-system" data-window="system">
+        <div class="window-bar"><span>05 / INTELLIGENCE</span><span class="window-meta">OPTIONAL LANE</span></div>
+        <div class="window-body">
+          <div class="kv" id="system-details"></div>
+          <div id="system-error" class="error-line"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="statusline">
+      <span>RESEARCH ONLY · TRANSACTIONS DISABLED</span>
+      <span id="last-update">NO UPDATE YET</span>
+      <span>CTRL+SHIFT+J · COMPACT</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

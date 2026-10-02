@@ -1,0 +1,22 @@
+[package]
+name = "jarvis-desktop"
+version = "0.4.0"
+description = "JARVIS Market Intelligence research desktop"
+edition = "2024"
+rust-version = "1.90"
+
+[build-dependencies]
+tauri-build = { version = "=2.7.1", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.1", features = ["tray-icon", "image-ico", "image-png"] }
+tauri-plugin-global-shortcut = "=2.4.0"
+tauri-plugin-notification = "=2.5.1"
+tauri-plugin-autostart = "=2.7.0"
+tauri-plugin-single-instance = "=2.5.2"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"

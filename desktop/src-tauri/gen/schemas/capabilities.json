@@ -1,0 +1,1 @@
+{"main-capability":{"identifier":"main-capability","description":"Minimal JARVIS desktop capability. System integrations stay on the Rust side.","local":true,"windows":["main","compact"],"permissions":["core:default"]}}
