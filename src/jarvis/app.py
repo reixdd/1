@@ -24,6 +24,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=6000)
     identity_key: str | None = Field(default=None, max_length=300)
     mode: Literal["fast", "deep", "lite"] = "fast"
+    model: str | None = Field(default=None, max_length=120)  # optional installed DIT model
 
 
 def _web_dir() -> Path:
@@ -278,6 +279,7 @@ def create_app() -> FastAPI:
                 body.message,
                 identity_key or "",
                 body.mode,
+                model_override=body.model if body.mode == "lite" else None,
                 operator_context={
                     "radar": radar.get("items", [])[:8],
                     "pipeline": (await runtime.status()).get("pipeline", {}),
