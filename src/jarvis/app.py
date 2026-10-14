@@ -23,7 +23,7 @@ class WatchRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=6000)
     identity_key: str | None = Field(default=None, max_length=300)
-    mode: Literal["fast", "deep"] = "fast"
+    mode: Literal["fast", "deep", "lite"] = "fast"
 
 
 def _web_dir() -> Path:
