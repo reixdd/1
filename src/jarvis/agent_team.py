@@ -232,7 +232,27 @@ class AgentTeam:
             model=deep_model,
             tools=manager_tools,
         )
-        team = {"Runner": Runner, "manager": manager, "models": selection}
+        # Lightweight DIT research reuses the existing fast Ollama model and
+        # existing bounded JARVIS specialists; it never loads another model.
+        # Ordinary JARVIS fast/deep behavior remains unchanged.
+        manager_lite = Agent(
+            name="JARVIS_LITE",
+            instructions=(
+                f"{common}\n\nThis is a compact, read-only research request from DIT. "
+                "Prefer one short, sourced answer. Call at most one specialist when "
+                "external evidence is needed; otherwise state uncertainty. "
+                "Never initiate trading, wallet changes, or provider polling."
+            ),
+            model=fast_model,
+            tools=[
+                specialists[role].as_tool(
+                    tool_name=f"ask_{role.lower()}",
+                    tool_description=f"Ask the existing {role} agent for bounded read-only research.",
+                )
+                for role in ("SCOUT", "SOCIAL")
+            ],
+        )
+        team = {"Runner": Runner, "manager": manager, "manager_lite": manager_lite, "models": selection}
         self._team_cache = (cache_key, team)
         self._sdk_error = None
         return team
@@ -271,13 +291,14 @@ class AgentTeam:
             "OPERATOR CONTEXT:\n" + json.dumps(prompt_context, separators=(",", ":"), default=str)[:24000]
             + "\n\nUSER:\n" + text
         )
-        timeout = timeout_seconds or (180.0 if str(mode).lower() == "deep" else 75.0)
+        lite = str(mode).lower() == "lite"
+        timeout = timeout_seconds or (50.0 if lite else 180.0 if str(mode).lower() == "deep" else 75.0)
         started = time.perf_counter()
         try:
             result = await asyncio.wait_for(
                 team["Runner"].run(
-                    starting_agent=team["manager"], input=prompt, context=context,
-                    max_turns=14 if str(mode).lower() == "deep" else 9,
+                    starting_agent=team["manager_lite"] if lite else team["manager"], input=prompt, context=context,
+                    max_turns=4 if lite else 14 if str(mode).lower() == "deep" else 9,
                 ),
                 timeout=timeout,
             )
