@@ -76,6 +76,7 @@ class AgentTeam:
         self._last_run_at: float | None = None
         self._runs = 0
         self._team_cache: tuple[tuple[str | None, str | None], Any] | None = None
+        self._dit_slots = asyncio.Semaphore(3)  # bounded shared JARVIS-lite admission
 
     async def submit(self, packet: AttentionPacket) -> None:
         if not self.settings.agents_enabled:
@@ -252,13 +253,15 @@ class AgentTeam:
                 for role in ("SCOUT", "SOCIAL")
             ],
         )
-        team = {"Runner": Runner, "manager": manager, "manager_lite": manager_lite, "models": selection}
+        team = {"Runner": Runner, "manager": manager, "manager_lite": manager_lite, "models": selection,
+                "Agent": Agent, "OpenAIChatCompletionsModel": OpenAIChatCompletionsModel, "client": client}
         self._team_cache = (cache_key, team)
         self._sdk_error = None
         return team
 
     async def ask(self, message: str, identity_key: str = "", mode: str = "fast",
-                  operator_context: dict[str, Any] | None = None, timeout_seconds: float | None = None) -> str:
+                  operator_context: dict[str, Any] | None = None, timeout_seconds: float | None = None,
+                  model_override: str | None = None) -> str:
         """Conversational operator entry point over the same bounded manager team.
 
         This never owns provider polling or market state. The selected identity and a
@@ -292,19 +295,41 @@ class AgentTeam:
             + "\n\nUSER:\n" + text
         )
         lite = str(mode).lower() == "lite"
+        chosen_manager = team["manager_lite"] if lite else team["manager"]
+        if model_override and lite:
+            installed = {str(row.get("name")) for row in self.catalog.models if row.get("name")}
+            if model_override not in installed:
+                raise ValueError("Requested DIT model is not installed locally")
+            selected_model = team["OpenAIChatCompletionsModel"](
+                model=model_override, openai_client=team["client"]
+            )
+            template = team["manager_lite"]
+            chosen_manager = team["Agent"](
+                name="JARVIS_DIT_" + str(identity_key or "AGENT").replace(".", "_")[:40],
+                instructions=template.instructions,
+                model=selected_model,
+                tools=template.tools,
+            )
         timeout = timeout_seconds or (50.0 if lite else 180.0 if str(mode).lower() == "deep" else 75.0)
         started = time.perf_counter()
+        acquired = False
         try:
+            if lite:
+                await asyncio.wait_for(self._dit_slots.acquire(), timeout=10.0)
+                acquired = True
             result = await asyncio.wait_for(
                 team["Runner"].run(
-                    starting_agent=team["manager_lite"] if lite else team["manager"], input=prompt, context=context,
+                    starting_agent=chosen_manager, input=prompt, context=context,
                     max_turns=4 if lite else 14 if str(mode).lower() == "deep" else 9,
                 ),
                 timeout=timeout,
             )
         except asyncio.TimeoutError as exc:
             self.metrics.inc("operator_chat_timeouts_total")
-            raise RuntimeError(f"JARVIS timed out after {int(timeout)}s") from exc
+            raise RuntimeError(f"JARVIS admission or inference timed out (limit {int(timeout)}s)") from exc
+        finally:
+            if acquired:
+                self._dit_slots.release()
         self.metrics.inc("operator_chat_runs_total")
         self.metrics.observe("operator_chat_latency_ms", (time.perf_counter() - started) * 1000.0)
         answer = str(result.final_output or "").strip()
