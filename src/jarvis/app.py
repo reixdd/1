@@ -276,14 +276,18 @@ def create_app() -> FastAPI:
             try:
                 yield json.dumps({"type": "state", "text": "JARVIS is preparing research context",
                                   "request_id": request_id}) + "\n"
-                radar = await runtime.operator.radar(10)
-                identity_key = body.identity_key or (
-                    radar.get("items", [{}])[0].get("identity_key") if radar.get("items") else ""
-                )
-                context = {
-                    "radar": radar.get("items", [])[:8],
-                    "pipeline": (await runtime.status()).get("pipeline", {}),
-                }
+                if body.mode == "lite":
+                    # DIT already attached bounded observed evidence; do not poll radar
+                    # or inject large duplicate market context for every short pitch.
+                    identity_key = body.identity_key or ""
+                    context = {}
+                else:
+                    radar = await runtime.operator.radar(10)
+                    identity_key = body.identity_key or (
+                        radar.get("items", [{}])[0].get("identity_key") if radar.get("items") else ""
+                    )
+                    context = {"radar": radar.get("items", [])[:8],
+                               "pipeline": (await runtime.status()).get("pipeline", {})}
                 await runtime.operator.append_chat("user", body.message, identity_key)
                 phase = "inference"
                 task = asyncio.create_task(runtime.agents.ask(
