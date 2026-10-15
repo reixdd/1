@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 import json
 from pathlib import Path
 from typing import AsyncIterator, Literal
@@ -68,7 +69,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health(request: Request):
         runtime = request.app.state.runtime
-        return {"ok": True, "started_at": runtime.started_at, "architecture": "clean-step3+operator"}
+        return {"ok": True, "started_at": runtime.started_at, "architecture": "clean-step3+operator", "dit_stream_protocol": 2}
 
     @app.get("/api/status")
     async def status(request: Request):
@@ -267,47 +268,65 @@ def create_app() -> FastAPI:
     @app.post("/api/chat")
     async def chat(request: Request, body: ChatRequest):
         runtime = request.app.state.runtime
-        radar = await runtime.operator.radar(10)
-        identity_key = body.identity_key
-        if not identity_key and radar.get("items"):
-            identity_key = radar["items"][0].get("identity_key")
-        await runtime.operator.append_chat("user", body.message, identity_key)
+        request_id = uuid.uuid4().hex[:12]
 
         async def stream() -> AsyncIterator[str]:
-            yield json.dumps({"type": "state", "text": "JARVIS is checking canonical research state…"}) + "\n"
-            task = asyncio.create_task(runtime.agents.ask(
-                body.message,
-                identity_key or "",
-                body.mode,
-                model_override=body.model if body.mode == "lite" else None,
-                operator_context={
+            task = None
+            phase = "context"
+            try:
+                yield json.dumps({"type": "state", "text": "JARVIS is preparing research context",
+                                  "request_id": request_id}) + "\n"
+                radar = await runtime.operator.radar(10)
+                identity_key = body.identity_key or (
+                    radar.get("items", [{}])[0].get("identity_key") if radar.get("items") else ""
+                )
+                context = {
                     "radar": radar.get("items", [])[:8],
                     "pipeline": (await runtime.status()).get("pipeline", {}),
-                },
-            ))
-            elapsed = 0
-            try:
+                }
+                await runtime.operator.append_chat("user", body.message, identity_key)
+                phase = "inference"
+                task = asyncio.create_task(runtime.agents.ask(
+                    body.message,
+                    identity_key or "",
+                    body.mode,
+                    model_override=body.model if body.mode == "lite" else None,
+                    operator_context=context,
+                ))
+                elapsed = 0
                 while not task.done():
                     if await request.is_disconnected():
-                        task.cancel()
-                        return
+                        raise asyncio.CancelledError()
                     try:
                         answer = await asyncio.wait_for(asyncio.shield(task), timeout=3.0)
                         break
                     except asyncio.TimeoutError:
                         elapsed += 3
-                        yield json.dumps({"type": "heartbeat", "elapsed_s": elapsed}) + "\n"
+                        yield json.dumps({"type": "heartbeat", "elapsed_s": elapsed,
+                                          "request_id": request_id}) + "\n"
                 else:
                     answer = await task
+                if not str(answer or "").strip():
+                    raise RuntimeError("JARVIS completed with an empty answer")
+                phase = "persist_chat"
                 await runtime.operator.append_chat("jarvis", answer, identity_key)
-                yield json.dumps({"type": "answer", "text": answer, "identity_key": identity_key}) + "\n"
-                yield json.dumps({"type": "done"}) + "\n"
+                yield json.dumps({"type": "answer", "text": answer,
+                                  "identity_key": identity_key, "model": body.model,
+                                  "request_id": request_id}) + "\n"
+                yield json.dumps({"type": "done", "request_id": request_id}) + "\n"
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                yield json.dumps({"type": "error", "text": f"{type(exc).__name__}: {str(exc)[:500]}"}) + "\n"
+                # Do not silently close the stream after the opening state frame.
+                yield json.dumps({"type": "error", "phase": phase, "request_id": request_id,
+                                  "text": f"{type(exc).__name__}: {str(exc)[:400]}"}) + "\n"
+            finally:
+                if task and not task.done():
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
 
-        return StreamingResponse(stream(), media_type="application/x-ndjson", headers={"X-Accel-Buffering": "no"})
+        return StreamingResponse(stream(), media_type="application/x-ndjson",
+                                 headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"})
 
     return app
 
