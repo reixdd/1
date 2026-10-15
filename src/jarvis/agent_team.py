@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import json
 import time
 from dataclasses import dataclass
@@ -76,7 +77,9 @@ class AgentTeam:
         self._last_run_at: float | None = None
         self._runs = 0
         self._team_cache: tuple[tuple[str | None, str | None], Any] | None = None
-        self._dit_slots = asyncio.Semaphore(3)  # bounded shared JARVIS-lite admission
+        # Three independent DIT research identities; explicit local admission bound.
+        self._dit_limit = max(1, min(3, int(os.getenv("JARVIS_DIT_MAX_CONCURRENT", "3"))))
+        self._dit_slots = asyncio.Semaphore(self._dit_limit)
 
     async def submit(self, packet: AttentionPacket) -> None:
         if not self.settings.agents_enabled:
@@ -131,6 +134,9 @@ class AgentTeam:
         if imported is None or not selection.get("fast") or not selection.get("deep"):
             return None
         Agent, AsyncOpenAI, OpenAIChatCompletionsModel, Runner, RunContextWrapper, function_tool, set_tracing_disabled = imported
+        # Pinned Agents SDK evaluates deferred annotation strings against module globals.
+        # The SDK itself remains optional for users without its extra installed.
+        globals()["RunContextWrapper"] = RunContextWrapper
         set_tracing_disabled(True)
         client = AsyncOpenAI(base_url=f"{self.settings.ollama_url.rstrip('/')}/v1/", api_key="ollama")
         fast_model = OpenAIChatCompletionsModel(model=selection["fast"], openai_client=client)
@@ -246,11 +252,16 @@ class AgentTeam:
             ),
             model=fast_model,
             tools=[
-                specialists[role].as_tool(
+                Agent(
+                    name=f"DIT_{role}",
+                    instructions=f"{common}\n\nROLE: {specs[role][1]}",
+                    model=fast_model,
+                    tools=[tools[name] for name in ROLE_CAPABILITIES[role]],
+                ).as_tool(
                     tool_name=f"ask_{role.lower()}",
-                    tool_description=f"Ask the existing {role} agent for bounded read-only research.",
+                    tool_description=f"Ask {role} for bounded read-only evidence research.",
                 )
-                for role in ("SCOUT", "SOCIAL")
+                for role in specs
             ],
         )
         team = {"Runner": Runner, "manager": manager, "manager_lite": manager_lite, "models": selection,
@@ -310,17 +321,17 @@ class AgentTeam:
                 model=selected_model,
                 tools=template.tools,
             )
-        timeout = timeout_seconds or (50.0 if lite else 180.0 if str(mode).lower() == "deep" else 75.0)
+        timeout = timeout_seconds or (max(30., min(1500., float(os.getenv("JARVIS_DIT_TIMEOUT_SECONDS", "600")))) if lite else 180.0 if str(mode).lower() == "deep" else 75.0)
         started = time.perf_counter()
         acquired = False
         try:
             if lite:
-                await asyncio.wait_for(self._dit_slots.acquire(), timeout=10.0)
+                await asyncio.wait_for(self._dit_slots.acquire(), timeout=30.0)
                 acquired = True
             result = await asyncio.wait_for(
                 team["Runner"].run(
                     starting_agent=chosen_manager, input=prompt, context=context,
-                    max_turns=4 if lite else 14 if str(mode).lower() == "deep" else 9,
+                    max_turns=7 if lite else 14 if str(mode).lower() == "deep" else 9,
                 ),
                 timeout=timeout,
             )
@@ -333,7 +344,9 @@ class AgentTeam:
         self.metrics.inc("operator_chat_runs_total")
         self.metrics.observe("operator_chat_latency_ms", (time.perf_counter() - started) * 1000.0)
         answer = str(result.final_output or "").strip()
-        return answer or "I do not have enough evidence to answer that yet."
+        if not answer:
+            raise RuntimeError("Local model completed but returned an empty research answer")
+        return answer
 
     async def _run_packet(self, packet: AttentionPacket) -> None:
         team = self._team()
