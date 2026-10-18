@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {compareSnapshots, uniqueEvents} from '../ui/traction.mjs';
+import {createPreferencesStore} from '../ui/storage.mjs';
+const b={token_key:'sol:x',pool:'A',provider:'GeckoTerminal',observed_at:100,volume_5m:100,liquidity:1000};
+test('two comparable timestamps can produce real change signals',()=>{const e=compareSnapshots(b,{...b,observed_at:160,volume_5m:160});assert.equal(e[0].kind,'ACTIVITY_INCREASING')});
+test('mismatched pools and providers cannot generate bogus changes',()=>{assert.deepEqual(compareSnapshots(b,{...b,pool:'B',observed_at:150,volume_5m:200}),[]);assert.deepEqual(compareSnapshots(b,{...b,provider:'DexScreener',observed_at:150,volume_5m:200}),[])});
+test('zero denominators cannot produce Infinity deltas',()=>{assert.deepEqual(compareSnapshots({...b,volume_5m:0},{...b,observed_at:160,volume_5m:100}),[])});
+test('event IDs dedupe without losing future distinct observations',()=>{const v={kind:'ACTIVITY_INCREASING',event_id:'sol:a:100:150'};assert.equal(uniqueEvents([v,v,{...v,event_id:'sol:a:100:170'}]).length,2)});
+test('watchlist and settings persist between store instances',()=>{const mem=new Map();const local={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v)};const a=createPreferencesStore(local);a.setWatched('sol:x',true);a.setPreference('accent','mint');const b2=createPreferencesStore(local);assert.deepEqual(b2.watched(),['sol:x']);assert.equal(b2.preferences().accent,'mint')});

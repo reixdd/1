@@ -1,0 +1,13 @@
+{
+  "$schema":"https://schema.tauri.app/config/2",
+  "productName":"MIKA · Research Companion",
+  "version":"0.1.0",
+  "identifier":"ai.mika.trenches.research",
+  "build":{"frontendDist":"../ui"},
+  "app":{
+    "withGlobalTauri":true,
+    "windows":[{"label":"main","title":"MIKA · Research Companion","width":400,"height":880,"minWidth":340,"minHeight":520,"resizable":true,"center":true,"decorations":true,"alwaysOnTop":true}],
+    "security":{"csp":"default-src 'self'; img-src 'self' asset: data:; script-src 'self'; style-src 'self'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'"}
+  },
+  "bundle":{"active":true,"targets":["nsis"],"icon":["icons/icon.ico","icons/icon.png","icons/128x128.png","icons/32x32.png"],"windows":{"nsis":{"installMode":"currentUser"}}}
+}

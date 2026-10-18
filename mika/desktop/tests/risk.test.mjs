@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { classifyRisk, extractGMGNEvidence } from '../ui/risk.mjs';
+test('missing security fields result in UNVERIFIED',()=>{assert.equal(classifyRisk([]).verdict,'UNVERIFIED')});
+test('conflicted provider findings never count as clean',()=>{assert.equal(classifyRisk([{field:'mint_authority',status:'CONFLICTED',severity:'MEDIUM'}]).verdict,'NEEDS_REVIEW')});
+test('verified material authority finding is high risk',()=>{assert.equal(classifyRisk([{field:'mint_authority',status:'ONCHAIN_VERIFIED',severity:'HIGH',value:true}]).verdict,'HIGH_RISK')});
+test('zero is not inferred from absent bundled data',()=>{assert.equal(extractGMGNEvidence({security:{ok:true,data:{}}}).some(f=>f.field==='bundler_rate'),false)});
+test('provider-renounced flags do not imply direct onchain verification',()=>{const f=extractGMGNEvidence({security:{ok:true,data:{renounced_mint:false}}});assert.equal(f[0].status,'PROVIDER_REPORTED');assert.equal(f[0].severity,'HIGH')});
+test('provider security failure cannot be treated as genuine evidence',()=>{assert.deepEqual(extractGMGNEvidence({security:{ok:false,data:{renounced_mint:false}}}),[])});
+test('ambiguous ratio units cannot trigger high-risk thresholds',()=>{const f=extractGMGNEvidence({security:{ok:true,data:{top_10_holder_rate:80}}});assert.equal(f[0].severity,'UNKNOWN')});
