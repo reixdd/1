@@ -1,7 +1,7 @@
 name: MIKA Windows checks
 on:
   push:
-    branches: [mika-isolated-project, mika-v02-research-upgrade]
+    branches: [mika-isolated-project, mika-v02-research-upgrade, mika-v03-public-web-architecture]
     paths:
       - 'mika/**'
       - '.github/workflows/mika-windows.yml'
@@ -31,6 +31,12 @@ jobs:
       - name: Run research unit tests
         shell: pwsh
         run: npm.cmd test
+      - name: Run web, relay and connector tests
+        shell: pwsh
+        run: |
+          cd ../web; npm.cmd test
+          cd ../cloud; npm.cmd test
+          cd ../connector; npm.cmd test
       - name: Build unsigned Windows installer
         shell: pwsh
         run: npm.cmd run build
