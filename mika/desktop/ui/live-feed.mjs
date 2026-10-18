@@ -1,3 +1,4 @@
+import {safeImageUrl,normalizeSocials} from './token-media.mjs';
 import {finite, normalizeRadarRow} from './domain.mjs';
 const ts = value => {if(typeof value==='number')return value>1e11?value/1000:value;const n=Date.parse(String(value||''));return Number.isFinite(n)?n/1000:null};
 const mint = row => String(row?.address||row?.contract||row?.mint||row?.token_address||row?.tokenAddress||row?.base_token_address||row?.baseToken?.address||'').trim();
@@ -20,7 +21,8 @@ function safeRow(raw,source,now=Date.now()/1000){
   volume_5m:finite(raw?.volume_5m??raw?.volume?.m5),
   buys_5m:finite(raw?.buys_5m??raw?.txns?.m5?.buys),
   sells_5m:finite(raw?.sells_5m??raw?.txns?.m5?.sells),
-  image_url:findStr(raw?.image_url,raw?.logo_url,raw?.info?.imageUrl)||null,
+  image_url:safeImageUrl(findStr(raw?.image_url,raw?.logo_url,raw?.logo,raw?.icon,raw?.imageUrl,raw?.info?.imageUrl)),
+  socials:normalizeSocials(raw?.socials||raw?.info?.socials||[]),
   pair_created_at:ts(raw?.pair_created_at??raw?.pairCreatedAt)||null,
   source_url:findStr(raw?.url,raw?.pair_url)||null,
   launchpad_proof:raw?.launchpad_proof||source,
@@ -45,7 +47,7 @@ export function normalizeGeckoNewPools(body,now=Date.now()/1000){
   const attrs=pool?.attributes||{}, tokenId=pool?.relationships?.base_token?.data?.id||'';
   const token=included.get(tokenId)||{},address=tokenId.replace(/^solana_/,''),m5=attrs.transactions?.m5||{};
   const row=safeRow({address,symbol:token.symbol,name:token.name,pool:attrs.address,
-   liquidity_usd:attrs.reserve_in_usd,volume_5m:attrs.volume_usd?.m5,
+   liquidity_usd:attrs.reserve_in_usd,volume_5m:attrs.volume_usd?.m5,image_url:token.image_url||token.imageUrl||token.logo_url,
    buys_5m:m5.buys,sells_5m:m5.sells,pair_created_at:attrs.pool_created_at,
    launchpad_proof:'DEX relationship',url:attrs?.url},'GeckoTerminal',now);
   return row?[row]:[];
@@ -58,7 +60,7 @@ export function normalizeDexQuotes(pairs,requested=[],now=Date.now()/1000){
   const row=safeRow({...pair,contract,pool:pair.pairAddress,
     symbol:pair.baseToken.symbol,name:pair.baseToken.name,
     volume_5m:pair.volume?.m5,buys_5m:pair.txns?.m5?.buys,sells_5m:pair.txns?.m5?.sells,
-    liquidity_usd:pair.liquidity?.usd},'DEX Screener',now);
+    liquidity_usd:pair.liquidity?.usd,image_url:pair.info?.imageUrl,socials:pair.info?.socials,source_url:pair.url},'DEX Screener',now);
   if(!row)return [];
   row.dex_id=pair.dexId||null;row.launchpad_proof=pumpProof(pair)?'Pump.fun DEX':'Token quote only';
   return [row];
@@ -74,7 +76,7 @@ export function mergeLiveRows(collections){
   const chosen=(row.observed_at||0)>=(prev.observed_at||0)?row:prev;
   const other=chosen===row?prev:row;
   const merged={...other,...chosen,providers};
-  for(const key of ['market_cap','liquidity','volume_5m','buys_5m','sells_5m','image_url'])if(merged[key]==null)merged[key]=other[key]??null;
+  for(const key of ['market_cap','liquidity','volume_5m','buys_5m','sells_5m','image_url','socials','source_url'])if(merged[key]==null || (key==='socials' && !merged[key]?.length))merged[key]=other[key]??null;
   grouped.set(k,merged);
  }}return [...grouped.values()].sort((a,b)=>(b.observed_at||0)-(a.observed_at||0));
 }

@@ -1,3 +1,4 @@
+import {safeImageUrl,normalizeSocials,safeExternalUrl} from './token-media.mjs';
 /** MIKA canonical identities and evidence-safe numeric parsing. */
 export const finite = value => value === null || value === undefined || value === '' || typeof value === 'boolean' ? null : (Number.isFinite(Number(value)) ? Number(value) : null);
 export function tokenKey(chain, contract) {
@@ -21,7 +22,7 @@ export function normalizeRadarRow(row) {
   return {chain,contract,token_key:key,market_key:`${key}:${pool||'-'}`,pool,
     symbol:String(row.symbol||'?').slice(0,60),name:String(row.name||'Unknown token').slice(0,100),
     identity_key:String(row.identity_key||`${key}:${pool||'-'}`),
-    category:String(row.category||'RESEARCH'),provider,source:String(row.source||provider),source_url:row.source_url||null,dex_id:row.dex_id||null,launchpad_proof:row.launchpad_proof||null,image_url:row.image_url||null,pair_created_at:finite(row.pair_created_at),providers:Array.isArray(row.providers)?row.providers:[],
+    category:String(row.category||'RESEARCH'),provider,source:String(row.source||provider),source_url:safeExternalUrl(row.source_url),socials:normalizeSocials(row.socials),dex_id:row.dex_id||null,launchpad_proof:row.launchpad_proof||null,image_url:safeImageUrl(row.image_url),pair_created_at:finite(row.pair_created_at),providers:Array.isArray(row.providers)?row.providers:[],
     observed_at,age_seconds:finite(row.age_seconds),observation_age_seconds:finite(row.observation_age_seconds),
     why_surfaced:Array.isArray(row.why_surfaced)?row.why_surfaced:[],
     ...values};

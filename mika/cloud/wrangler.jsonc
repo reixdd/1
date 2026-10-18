@@ -1,0 +1,12 @@
+{
+  "name": "mika-v03-preview",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "../web", "binding": "ASSETS" },
+  "durable_objects": { "bindings": [{ "name": "MIKA_QUEUE", "class_name": "MikaQueue" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MikaQueue"] }],
+  "vars": {
+    "PUBLIC_ORIGIN": "https://replace-with-owned-domain.example",
+    "TURNSTILE_SITE_KEY": "REPLACE_WITH_PUBLIC_SITE_KEY"
+  }
+}

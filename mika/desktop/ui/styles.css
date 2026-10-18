@@ -13,3 +13,17 @@
 #app[data-character="SCANNING"] .scan-grid{animation:pulse 1.25s ease-in-out infinite}
 #app[data-character="WARNING"] .hero{border-bottom-color:#f6a277}
 #app[data-character="ACTIVITY"] .hero{border-bottom-color:#65dcb8}
+
+/* MIKA v0.3 media and compact terminal market comparison */
+.token-card{border:1px solid #302a47;border-radius:12px;background:#121420;overflow:hidden;margin-bottom:6px}
+.token-item{border:0;border-radius:0;padding:0;width:100%;display:block;background:transparent}
+.token-open{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;background:transparent;border:0;color:inherit;text-align:left}
+.token-open:hover{background:#211b35}.token-open:focus-visible,.mini-action:focus-visible,.mini-link:focus-visible{outline:2px solid var(--accent)}
+.token-art{height:38px;width:38px;flex:0 0 38px;object-fit:cover;border-radius:10px;background:#211d32;border:1px solid #725397}
+.token-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;padding:0 10px 7px;font-size:10px}
+.mini-action,.mini-link{display:inline-flex;align-items:center;justify-content:center;min-height:25px;padding:3px 7px;border:1px solid #48385d;border-radius:7px;color:#cfbaff;background:#201a2f;text-decoration:none;font-size:11px}
+.cap-meter{height:8px;margin:0 10px 8px;border-radius:20px;background:#2a283a;overflow:hidden;color:#9d93b4;font-size:8px}
+.cap-meter-fill{height:100%;background:linear-gradient(90deg,#8c63c9,#e3beff);border-radius:20px}
+.watch-head{display:flex;align-items:center;gap:10px}
+.watch-actions a{font-size:11px}
+@media(min-width:650px){.app{box-shadow:0 12px 70px #090812}}
