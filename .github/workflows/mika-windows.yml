@@ -1,0 +1,43 @@
+name: MIKA Windows checks
+on:
+  push:
+    branches: [mika-isolated-project]
+    paths:
+      - 'mika/**'
+      - '.github/workflows/mika-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: mika/desktop
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install desktop CLI dependencies
+        shell: pwsh
+        run: npm.cmd install --no-audit --no-fund
+      - name: Run research unit tests
+        shell: pwsh
+        run: npm.cmd test
+      - name: Build unsigned Windows installer
+        shell: pwsh
+        run: npm.cmd run build
+      - name: Upload installer
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mika-windows-installer
+          path: mika/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
