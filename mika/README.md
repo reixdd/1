@@ -1,46 +1,43 @@
-# MIKA — Market Intelligence & Knowledge Assistant
+# MIKA v0.2 — Local research companion
 
-MIKA is a research-only Windows desktop sidebar, built with Tauri 2 and designed to read the **existing JARVIS research core**. It is not a trading bot, not a wallet tool, and not a guarantee that any memecoin is safe. It does not write to JARVIS's database or require Supabase.
+MIKA is a **research-only** Windows 11 desktop sidecar, powered by a separate Tauri 2 shell and the existing JARVIS research core. It does not operate wallets, make transactions, rank winning coins, or offer investment recommendations.
 
-## Status — October 18, 2026
+## What's changed in this candidate
 
-- **Implemented in source:** native 400px Tauri sidebar configuration, local read-only API allowlist, Solana token identity normalization, JARVIS radar UI, GMGN token fallback, evidence-attributed risk classifications, traction comparison, local watch preferences, deterministic Ask MIKA, generated character portraits and states.
-- **Verified in this build environment:** Node unit tests (`npm test`), JavaScript syntax checks, source archive contents.
-- **Not verified here:** Windows Tauri compile/install, genuine live GMGN credentials/connectivity, browser-based UI screenshot test, native tray behavior. Rust/Cargo is not installed in this execution environment.
-- **Not included:** real-money trading, reliable common-owner/bundle attribution, direct Solana RPC verifier, full GIF/Live2D animation, Cloud sync, natural-language Ollama chat (Ask tab uses transparent deterministic replies).
+- Scan combines read-only GMGN Trenches and independently retrieved GeckoTerminal new pools with **confirmed Pump.fun DEX/launchpad provenance**. JARVIS's narrow canonical radar no longer blocks an otherwise available public launchpad feed. Unsupported launchpads are excluded; unverified platform identity does not produce a guessed token.
+- Watch displays full contract addresses with Copy, requests current DEX Screener market-cap observations, and labels provider/request timestamps.
+- Traction shows the observation queue even before two comparable snapshots exist. Material changes require compatible provider/pool and at least two timestamps.
+- Ask MIKA now calls **local Ollama text chat**, with short conversational history, automatically enumerating installed models, and selected-token context. She can have casual conversation outside market topics. Tone is friendly, skeptical, and playful but not immersive-romantic.
+- MIKA requests one batch of up to 30 token quotes per second when tokens are present, rotates larger watchlists, and backs off after errors. **This is request cadence, not guaranteed 1-second fresh market data.** Provider caching is out of MIKA's control.
 
-## Windows setup
+## Sources and limits
 
-1. Install Rust (stable, >=1.90), Microsoft Visual Studio C++ Build Tools and Microsoft WebView2 runtime, plus Node.js 20+.
-2. Start the existing JARVIS backend at `http://127.0.0.1:8768`. Validate `http://127.0.0.1:8768/health` in a browser; its `ok` value must be true.
-3. From the `mika/desktop` folder run:
+- JARVIS Core (localhost port 8768): GMGN read-only CLI, evidence summaries where available.
+- GeckoTerminal public API: confirmed Pump.fun DEX new pools, fetched roughly every 40 seconds; actual coverage is limited by caching and availability.
+- DEX Screener public API: read-only quotes for up to 30 token addresses per request. Its documented token endpoint request limit is 300/minute; MIKA requests approximately 60/minute at most for the quotes task, and stops/backoffs on failures.
+- Ollama (localhost port 11434): local chat, no cloud fallback.
+
+A provider may legitimately return no confirmed Pump.fun pools. MIKA must show an empty state rather than inventing tokens. New-pool feeds are not a complete or instant firehose of every launch.
+
+## Running from source on Windows
+
+Prerequisites: Node.js 20+, Rust 1.90+, Microsoft Visual Studio C++ Build Tools, WebView2. Existing JARVIS Core at `http://127.0.0.1:8768` is recommended but not necessary for GeckoTerminal/DEX read-only data.
 
 ```powershell
+cd mika\desktop
 npm.cmd install
 npm.cmd test
 npm.cmd run dev
 ```
 
-4. Test a real Solana mint address in MIKA's Scan view. GMGN data requires a correctly configured GMGN CLI on the JARVIS side. If GMGN is unavailable, it will say so; JARVIS radar may still work via its alternative discovery providers.
-5. Once native checks succeed, package a Windows installer with `npm.cmd run build` from `mika/desktop`. Do not claim a distributable installer exists until it passes on Windows.
+For local Ask MIKA, start Ollama and ensure at least one model is installed. If unavailable, the UI reports that; it does not pretend to chat. The first available local model is selected, preferring `qwen3.5:4b` if present. Never paste secrets, private keys or passwords into chat.
 
-For a code-only browser preview, serve `desktop/ui/` using a local static server. It displays **CORE OFFLINE**, not fake market data, because native bridge calls are only available in Tauri.
+**This source-only candidate needs a successful Windows Tauri build and live-provider smoke test before an installer can be called verified.** Run `npm.cmd run build` to build it on your Windows environment.
 
-## Security boundaries
+## Open-source research skill
 
-The Rust bridge only permits specific GET routes on `127.0.0.1:8768`; it rejects unknown paths, unsupported query parameters, request injection, redirects and large responses. The window never fetches external token images or executes token descriptions as HTML. Neither private keys nor wallet actions are supported. MIKA uses provider-reported data as **claims**, never as independent confirmation. `UNKNOWN` is not zero and is not proof of safety.
+`skills/market-research/SKILL.md` describes an embedded read-only behavior policy. It is **not** a separately installed GMGN/agent framework extension. Avoid installing trading, swapping or account-management skills into this read-only sidecar.
 
-## Directory structure
+## Repository isolation
 
-```
-desktop/
-  src-tauri/      native window, bridge, icon, installer config
-  ui/             standalone accessible frontend + MIKA portraits
-  tests/          Node built-in unit tests
-  package.json    dev/test/build commands
-docs/             Superpowers design and plan (in staging branch)
-```
-
-## GitHub isolation
-
-Current working branch: `reixdd/1` → `mika-isolated-project`, under directory `mika/`. **Do not merge it into JARVIS main.** The connected GitHub integration cannot create repositories. Once a dedicated `reixdd/mika` repository exists, move this directory to that repository root. Until then, a tested code archive can be downloaded directly from this conversation.
+Original project lives in `reixdd/1` on a MIKA-specific branch under `mika/`; do not merge into JARVIS main. DIT and Supabase remain untouched.

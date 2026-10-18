@@ -1,10 +1,8 @@
-# MIKA verification ledger — 2026-10-18
+# MIKA v0.2 verification ledger
 
-- Node.js v22.16.0 was available. Rust/Cargo missing (`cargo: command not found`), so Windows build unverified.
-- TDD stage: missing-module tests failed first; implementations were added; all tests passed later.
-- Static JS checks: `node --check desktop/ui/app.mjs`.
-- Browser automation attempts: Chromium navigation blocked by environment `net::ERR_BLOCKED_BY_ADMINISTRATOR` for both `file://` and local HTTP; the visual UI is **not browser-verified**.
-- No external RPC/GMGN live requests were made. No credentials were used.
-- No JARVIS main or Dead Internet Theory database edits were made by this code build.
-
-Acceptance gates still required on user's Windows machine: `npm.cmd test`, `npm.cmd run dev`, Rust `cargo check`/`cargo test`, app launch, real GMGN and fallback test, tray behavior, and offline retry. The UI should not be described as verified operational until those checks pass.
+- Local JavaScript tests: run `cd desktop && npm test` and record result below.
+- JS syntax checks: `node --check` each `desktop/ui/*.mjs`.
+- Rust compile, integration, and Windows installer: require CI/Windows; do not infer from JS tests.
+- Live external feed behavior: requires network, configured providers and on-device smoke test. Mock tests validate parsing, not provider uptime.
+- The previous v0.1 installer remains the known deployed version until a later v0.2 build is independently confirmed.
+- New code must not permit buys, swaps, wallets, key handling or cloud LLM fallbacks.
