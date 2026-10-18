@@ -1,0 +1,16 @@
+{
+  "name": "mika-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MIKA research-only companion for JARVIS",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check:rust": "cd src-tauri && cargo check"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.7.0"
+  }
+}
