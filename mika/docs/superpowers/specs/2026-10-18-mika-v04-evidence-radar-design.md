@@ -90,3 +90,8 @@ This first phase is **read-only** and does not change JARVIS, creator history or
 ## Delivery order
 
 First implement data normalization + source attribution, then GMGN detail hydration and display, then filters/summary, then three-tab UI and regression suite. Package as `0.4.0-rc1` on isolated branch only, never merge into JARVIS main. Creator memory/feedback can ship independently after its own design gate.
+
+## Personalization addendum (approved 2026-10-18, lower priority)
+
+Preserve existing lavender/mint/ice presets and add charcoal-white, rose, and amber accents plus an optional custom hex accent (#RRGGBB only, no arbitrary CSS). Keep portrait/full-body/icon, reduced-motion, compact/dense display choices, and on-device persistence after the evidence and Traction fixes are verified. Color selection is presentation-only, must not override semantic warning/status colors or evidence provenance, and must not change the backend or incur image-generation/LLM work. Tests must cover invalid custom colors and preference migration without losing watchlist or saved research.
+
