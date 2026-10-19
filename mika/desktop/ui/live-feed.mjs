@@ -90,3 +90,12 @@ export function metadataFromTokenDossier(gmgn,mintAddress){
   (info.twitter||info.twitter_url?[{type:'twitter',url:info.twitter||info.twitter_url}]:[]);
  return safeRow({...info,address:mintAddress,socials},'GMGN token info');
 }
+
+/** Original Pump.fun uploaded metadata; never a replacement market quote. */
+export function normalizePumpMetadata(payload,mintAddress){
+ const info=payload?.data?.data||payload?.data||payload;
+ if(!info||typeof info!=='object'||Array.isArray(info))return null;
+ if(info.mint && info.mint!==mintAddress)return null;
+ const social=(typeof info.twitter==='string'&&info.twitter)?[{type:'twitter',url:info.twitter}]:[];
+ return safeRow({...info,address:mintAddress,image_url:info.image_uri||info.image||info.image_url,socials:social},'Pump.fun metadata');
+}
