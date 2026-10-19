@@ -28,7 +28,7 @@
 .watch-actions a{font-size:11px}
 @media(min-width:650px){.app{box-shadow:0 12px 70px #090812}}
 
-/* v0.3.1 scan + traction: prevent collapse under dense flex children */
+/* v0.3.1 scan + traction bug fixes: do not collapse dense flex children. */
 .token-list>.token-card,.content-list>.token-card{flex:0 0 auto}
 .token-card[data-activity] .token-actions{padding-top:2px}
 .traction-indicator{display:block;font-size:10px;color:#abdabf;margin:0 10px 8px}
@@ -38,7 +38,7 @@
 .watch-head{min-width:0;width:100%}
 .watch-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 
-/* MIKA 0.3.2: five-minute transaction mix and explicit source risk evidence. */
+/* MIKA 0.3.2: immediate observable 5m transaction mix, not profit predictions. */
 .traction-tools{display:flex;flex-direction:column;gap:7px;margin:4px 0 10px}
 .traction-tools .support{font-size:10px;color:#aaa4bd}
 .traction-modes{display:flex;gap:6px;align-items:center}
@@ -50,4 +50,19 @@
 .flow-buy{height:100%;background:linear-gradient(90deg,#319e8a,#76d7ae)}
 .flow-sell{height:100%;background:linear-gradient(90deg,#b8657f,#ec93a9)}
 .risk-note{margin:0 10px 9px;padding:5px 6px;background:#28201e;border-left:2px solid #e9ab70;color:#f1cda4;font-size:9px;line-height:1.45}
+
 .risk-note.unknown{background:#181821;border-color:#514b64;color:#9e98ad}
+
+/* MIKA v0.4 filter controls and semantic evidence labels */
+.research-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px;margin:6px 0;background:#161624;border:1px solid #30263f;border-radius:10px}
+.research-controls label{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#bfb4d4;min-width:0}
+.research-controls input,.research-controls select{width:100%;box-sizing:border-box;background:#111522;color:#e1d7ee;border:1px solid #4b3f5e;padding:6px;border-radius:6px;font-size:11px}
+.research-controls input:focus-visible,.research-controls select:focus-visible{outline:2px solid var(--accent)}
+.research-note{padding:7px 10px;font-size:10px;line-height:1.5;color:#c7c0d5}
+.research-evidence{padding:5px 10px;font-size:10px;border-left:2px solid #8f80bf;color:#c7bfe3;margin:5px 9px}
+.research-evidence.unknown{color:#c5b1a2;border-color:#a28d78}
+.app[data-density="compact"] .token-open{min-height:45px;padding:5px 8px}
+.app[data-density="compact"] .token-card{min-height:62px}
+.app[data-accent="white"]{--accent:#F1F1F1;--accent2:#D0D0D0}
+.app[data-accent="rose"]{--accent:#F4A4C7;--accent2:#D275A0}
+.app[data-accent="amber"]{--accent:#F5BB70;--accent2:#CE9655}

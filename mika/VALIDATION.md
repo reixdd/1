@@ -20,3 +20,7 @@ Run from each directory: `npm test` in desktop, web, cloud, connector; `node --c
 - Complete security review by independent reviewer, production penetration tests, human moderation/abuse testing.
 
 The earlier v0.2 installer remains your known last installed version until v0.3 Windows CI and the on-device smoke test pass.
+
+
+## v0.4 development verification
+Desktop 71, web 3, cloud 11, connector 3, community 3 JS tests passed locally. Windows build, GMGN real-API smoke test, on-chain creator history and production feedback backend are pending independent verification. No public reports endpoint deployed.

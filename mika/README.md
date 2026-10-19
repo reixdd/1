@@ -39,3 +39,7 @@ On your Windows PC, the connector must be configured explicitly with `MIKA_PUBLI
 Public messages pass through a cloud relay to your local machine. Provide visitors with a privacy notice and do not collect sensitive personal information.
 
 **Live verification pending:** Cloudflare deploy, Turnstile, real Ollama/JARVIS API connection, provider credentials, and Windows installer smoke test. Never label a missing data field or stale source as live/safe.
+
+
+## v0.4 evidence radar preview
+Three desktop tabs: Scan, Traction, Watch (Ask removed). Research filters default to under $30,000 market cap and under 30% GMGN-reported bundling. Unverified evidence is isolated, not passed. Creator details are provider-reported pending independently verified chain events. Public feedback and Supabase migration are NOT deployed. Accent colors are cosmetic. No trading or signing.

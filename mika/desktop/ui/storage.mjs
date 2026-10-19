@@ -1,5 +1,5 @@
 const KEY='mika-preferences-v1';
-const defaults={accent:'violet',mode:'half',mood:'focused',animation:'subtle',alwaysOnTop:true,watched:[],snapshots:{},events:[],tokenMeta:{}};
+const defaults={accent:'violet',mode:'half',mood:'focused',animation:'subtle',alwaysOnTop:true,watched:[],snapshots:{},events:[],tokenMeta:{},researchFilters:{maxMarketCap:30000,maxBundlerRatio:.30,enableCap:true,enableBundler:true,sort:'volume5m',view:'review'},density:'comfortable',customAccent:null};
 export function createPreferencesStore(storage){
  let state;
  try{state={...defaults,...JSON.parse(storage.getItem(KEY)||'{}')}}catch{state={...defaults}}
@@ -23,8 +23,12 @@ export function createPreferencesStore(storage){
    if(keys.length>250)delete state.tokenMeta[keys[0]];
    save();
   },
+  researchFilters:()=>({...defaults.researchFilters,...state.researchFilters}),
+  setResearchFilters:patch=>{state.researchFilters={...defaults.researchFilters,...state.researchFilters,...patch};save()},
+  setCustomAccent:hex=>{state.customAccent=hex;save()},
+  setDensity:density=>{state.density=density;save()},
   setWatched:(key,on)=>{const set=new Set(state.watched);on?set.add(key):set.delete(key);state.watched=[...set].slice(-250);save()},
-  setPreference:(key,value)=>{if(['accent','mode','mood','animation','alwaysOnTop'].includes(key)){state[key]=value;save()}},
+  setPreference:(key,value)=>{if(['accent','mode','mood','animation','alwaysOnTop','density'].includes(key)){state[key]=value;save()}},
   recentSnapshot:key=>state.snapshots?.[key]||null,
   saveSnapshot:(key,snapshot)=>{state.snapshots={...state.snapshots,[key]:snapshot};const keys=Object.keys(state.snapshots);if(keys.length>250)delete state.snapshots[keys[0]];save()},
   events:()=>[...state.events],

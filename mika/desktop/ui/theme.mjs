@@ -1,0 +1,4 @@
+const PRESETS={violet:'#A78BFA',mint:'#8FE2C6',ice:'#97D8FF',white:'#F1F1F1',rose:'#F4A4C7',amber:'#F5BB70'};
+export function normalizeAccent(value){if(typeof value!=='string')return null;if(value in PRESETS)return {name:value,hex:PRESETS[value]};return /^#[\da-fA-F]{6}$/.test(value)?{name:'custom',hex:value.toUpperCase()}:null;}
+export function migratePreferences(old={}){return {...old,watched:Array.isArray(old.watched)?old.watched:[],accent:normalizeAccent(old.accent)?.name==='custom'?old.accent:normalizeAccent(old.accent)?.name||'violet',density:old.density==='compact'?'compact':'comfortable'};}
+export function applyAccent(element,accent){const theme=normalizeAccent(accent);if(!theme)return false;element.style.setProperty('--accent',theme.hex);element.dataset.accent=theme.name;return true;}

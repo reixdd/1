@@ -24,8 +24,9 @@ function safeRow(raw,source,now=Date.now()/1000){
   price_change_5m_pct:finite(raw?.price_change_5m_pct??raw?.priceChange?.m5),
   bundler_rate:finite(raw?.bundler_trader_amount_rate??raw?.bundler_rate??raw?.security?.bundler_trader_amount_rate),
   holder_concentration_rate:finite(raw?.top_10_holder_rate??raw?.holder_concentration_rate),
+  evidence_source:source==='GMGN'?'GMGN Trenches':null,
   image_url:safeImageUrl(findStr(raw?.image_url,raw?.logo_url,raw?.logo,raw?.icon,raw?.imageUrl,raw?.logoURI,raw?.image?.url,raw?.metadata?.image,raw?.info?.imageUrl)),
-  socials:normalizeSocials(raw?.socials||raw?.info?.socials||[]),
+  socials:normalizeSocials([...(Array.isArray(raw?.socials)?raw.socials:Array.isArray(raw?.info?.socials)?raw.info.socials:[]),...(raw?.twitter||raw?.twitter_url||raw?.twitter_username?[{type:'twitter',url:raw.twitter||raw.twitter_url,handle:raw.twitter_username}]:[])]),
   pair_created_at:ts(raw?.pair_created_at??raw?.pairCreatedAt)||null,
   source_url:findStr(raw?.url,raw?.pair_url)||null,
   launchpad_proof:raw?.launchpad_proof||source,
@@ -84,7 +85,7 @@ export function mergeLiveRows(collections){
  }}return [...grouped.values()].sort((a,b)=>(b.observed_at||0)-(a.observed_at||0));
 }
 
-/** GMGN token-info details can enrich watched coins absent from new-pairs feed. */
+/** GMGN direct token-info metadata can enrich watched coins absent from current pool feed. */
 export function metadataFromTokenDossier(gmgn,mintAddress){
  const wrapper=gmgn?.info||gmgn?.token_info||gmgn?.data||gmgn||{};
  const info=wrapper?.data?.data||wrapper?.data||wrapper;
