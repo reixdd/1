@@ -10,6 +10,7 @@ const $=id=>document.getElementById(id);
 const store=createPreferencesStore(window.localStorage);
 const invoke=window.__TAURI__?.core?.invoke;
 const client=createClient(async path=>{if(!invoke)throw Error('Native MIKA bridge unavailable');return invoke('core_get',{path})},async(command,args)=>{if(!invoke)throw Error('Native bridge unavailable');return invoke(command,args)});
+const metadataAttempts=new Map();let metadataBusy=false,nextMetadataAt=0;
 const state={connection:'OFFLINE',rows:[],selected:null,active:'scan',busy:false,feedBusy:false,quoteBusy:false,
  quoteCursor:0,quotes:new Map(),events:[],sources:{},lastFeed:0,lastQuote:0,quoteRetryAt:0,quoteErrors:0,
  chatHistory:[],models:[],modelError:null};
@@ -110,6 +111,20 @@ function renderWatch(){sourceStatus();const root=$('watchList');clear(root);cons
  const bar=capBar(m.market_cap,maxCap);bar.classList.add('watch-cap');card.append(bar);const actions=el('div','watch-actions');actions.append(button('⧉ Copy CA',()=>copyCA(mint)),button('Inspect',()=>{tab('scan');scanToken(mint)}));const x=externalLink(m.socials?.find(x=>x.kind==='x')?.url,'𝕏');if(x)actions.append(x);const chart=externalLink(m.source_url,'↗ Chart');if(chart)actions.append(chart);
  actions.append(button('×',()=>{store.setWatched(key,false);renderWatch()}));card.append(actions);root.append(card)}
 }
+async function refreshMissingMetadata(){
+ if(metadataBusy||Date.now()<nextMetadataAt)return;
+ const targets=[...new Set([...store.watched().map(k=>k.startsWith('sol:')?k.slice(4):k),
+  ...(state.selected?[state.selected.mint]:[]),...state.rows.slice(0,30).map(r=>r.contract)])];
+ const now=Date.now(),mint=targets.find(x=>!store.tokenMeta(x)?.image_url && now-(metadataAttempts.get(x)||0)>600000);
+ if(!mint)return;
+ metadataBusy=true;nextMetadataAt=now+7000;metadataAttempts.set(mint,now);
+ try{const meta=await client.pumpMetadata(mint);
+  if(meta&&(meta.image_url||meta.socials?.length)){
+   store.saveTokenMeta(mint,meta);renderTokens();
+   if(state.active==='traction')renderTraction();if(state.active==='watch')renderWatch();
+  }
+ }catch{ /* Optional source: preserve market metrics if Pump.fun is unavailable */ }finally{metadataBusy=false}
+}
 function recordSnapshot(row){store.saveTokenMeta(row.contract,row);const norm=normalizeRadarRow(row),old=store.recentSnapshot(norm.market_key);if(old){const events=compareSnapshots(old,norm);if(events.length){store.saveEvents(events);if(state.active==='traction')character('ACTIVITY')}}store.saveSnapshot(norm.market_key,norm)}
 async function refreshQuotes(){if(state.quoteBusy||Date.now()<state.quoteRetryAt)return;const keys=[...new Set([...store.watched().map(k=>k.slice(4)),...state.rows.map(r=>r.contract),...(state.selected?[state.selected.mint]:[])])];if(!keys.length){sourceStatus();return}
  const offset=state.quoteCursor%keys.length,chunk=Array.from({length:Math.min(30,keys.length)},(_,i)=>keys[(offset+i)%keys.length]);state.quoteCursor=(offset+chunk.length)%keys.length;
@@ -121,6 +136,6 @@ async function loadModels(){if(state.models.length)return;try{const models=await
 async function ask(question){const text=String(question||'').trim();if(!text)return;chatLine('user',text);state.chatHistory.push({role:'user',content:text});const send=$('askForm').querySelector('button');send.disabled=true;character('THINKING');try{await loadModels();if(state.modelError||!state.models.length)throw Error(state.modelError||'No Ollama model installed');const context={current_token:state.selected?{mint:state.selected.mint,market:market(state.selected.mint),risk:classifyRisk(extractGMGNEvidence(state.selected.gmgn||{}))}:null,feed_sources:state.sources,observed_pairs:state.rows.length};const reply=await client.chat($('chatModel').value,pruneConversation(state.chatHistory),context);state.chatHistory.push({role:'assistant',content:reply});state.chatHistory=state.chatHistory.slice(-16);chatLine('assistant',reply)}catch(e){chatLine('assistant',`Local AI unavailable: ${e.message||e}. Start Ollama and check installed models; research tabs will still work.`)}finally{send.disabled=false;character('IDLE')}}
 function init(){const prefs=store.preferences();$('app').dataset.accent=prefs.accent;$('app').dataset.mode=prefs.mode;$('app').dataset.animation=prefs.animation;$('accentColor').value=prefs.accent;$('avatarMode').value=prefs.mode;$('companionMood').value=prefs.mood;$('animationIntensity').value=prefs.animation;$('alwaysOnTop').checked=prefs.alwaysOnTop;
  for(const b of document.querySelectorAll('.tab'))b.addEventListener('click',()=>tab(b.dataset.tab));$('refresh').addEventListener('click',()=>{refreshFeed();refreshQuotes()});$('tokenForm').addEventListener('submit',e=>{e.preventDefault();scanToken($('tokenInput').value.trim())});$('askForm').addEventListener('submit',e=>{e.preventDefault();const input=$('askInput'),message=input.value;input.value='';ask(message)});$('settingsToggle').addEventListener('click',()=>{const c=$('settingsContent');c.hidden=!c.hidden;$('settingsToggle').setAttribute('aria-expanded',String(!c.hidden))});for(const [id,key] of [['avatarMode','mode'],['accentColor','accent'],['companionMood','mood'],['animationIntensity','animation']])$(id).addEventListener('change',e=>{store.setPreference(key,e.target.value);$('app').dataset[key==='mode'?'mode':key==='accent'?'accent':'animation']=e.target.value;character($('app').dataset.character)});$('alwaysOnTop').addEventListener('change',async e=>{try{if(invoke)await invoke('set_always_on_top',{enabled:e.target.checked});store.setPreference('alwaysOnTop',e.target.checked)}catch(err){e.target.checked=!e.target.checked;showError(String(err))}});
- character('OFFLINE');refreshFeed().then(refreshQuotes);setInterval(refreshFeed,40000);setInterval(refreshQuotes,1000);setInterval(sourceStatus,1000);
+ character('OFFLINE');refreshFeed().then(refreshQuotes);setInterval(refreshFeed,40000);setInterval(refreshQuotes,1000);setInterval(refreshMissingMetadata,5000);setInterval(sourceStatus,1000);
 }
 init();
