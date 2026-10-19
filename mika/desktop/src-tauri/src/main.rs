@@ -98,6 +98,13 @@ fn ollama_client() -> Result<reqwest::Client,String> {
   .build().map_err(|e|e.to_string())
 }
 #[tauri::command]
+async fn market_pump_metadata(mint:String) -> Result<String,String> {
+ if !valid_mint(&mint){return Err("Invalid Solana token mint".into());}
+ let url=format!("https://frontend-api-v3.pump.fun/coins-v2/{mint}");
+ let reply=client()?.get(url).send().await.map_err(|e|format!("Pump.fun metadata unavailable: {e}"))?;
+ bounded_response(reply).await
+}
+#[tauri::command]
 async fn ollama_models() -> Result<String,String> {
  bounded_response(client()?.get("http://127.0.0.1:11434/api/tags").send().await.map_err(|e|format!("Local Ollama unavailable: {e}"))?).await
 }
@@ -121,7 +128,7 @@ async fn ollama_chat(model:String, history:Vec<ConversationMessage>, context:Str
 }
 fn main(){
  tauri::Builder::default()
- .invoke_handler(tauri::generate_handler![core_get,set_always_on_top,market_gecko,market_dex,ollama_models,ollama_chat])
+ .invoke_handler(tauri::generate_handler![core_get,set_always_on_top,market_gecko,market_dex,market_pump_metadata,ollama_models,ollama_chat])
  .setup(|app|{
    if let Some(main)=app.get_webview_window("main"){
      if let Ok(Some(monitor))=main.current_monitor(){
