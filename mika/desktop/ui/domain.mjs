@@ -15,7 +15,7 @@ export function normalizeRadarRow(row) {
   const chain=String(row.chain||'sol').toLowerCase(),contract=String(row.contract||row.address||row.mint||'').trim();
   const key=tokenKey(chain,contract);
   const provider=String(row.provider||row.providers?.[0]||'JARVIS canonical market');
-  const numbers=['price','market_cap','fdv','liquidity','volume_5m','volume_1h','volume_24h','buys_5m','sells_5m','price_change_5m_pct','rank_velocity_per_min'];
+  const numbers=['bundler_rate','holder_concentration_rate','price','market_cap','fdv','liquidity','volume_5m','volume_1h','volume_24h','buys_5m','sells_5m','price_change_5m_pct','rank_velocity_per_min'];
   const values=Object.fromEntries(numbers.map(k=>[k,finite(row[k])]));
   const observed_at=finite(row.last_observed_at??row.observed_at);
   const pool=row.pool||null;
