@@ -37,3 +37,17 @@
 .watch-cap{width:100%}
 .watch-head{min-width:0;width:100%}
 .watch-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+
+/* MIKA 0.3.2: five-minute transaction mix and explicit source risk evidence. */
+.traction-tools{display:flex;flex-direction:column;gap:7px;margin:4px 0 10px}
+.traction-tools .support{font-size:10px;color:#aaa4bd}
+.traction-modes{display:flex;gap:6px;align-items:center}
+.mode-button{flex:1;min-width:0;border:1px solid #463756;background:#161626;color:#aaa3c6;border-radius:8px;padding:8px 5px;font-size:9px;font-weight:700}
+.mode-button.active{border-color:#a385de;background:#302441;color:#fff}
+.flow-wrap{padding:0 10px 8px}
+.flow-caption{margin:0 0 5px;font-size:9px;color:#c3b8d7;letter-spacing:.02em}
+.flow-meter{height:10px;width:100%;display:flex;overflow:hidden;border-radius:50px;border:1px solid #453a58;background:#1e2030}
+.flow-buy{height:100%;background:linear-gradient(90deg,#319e8a,#76d7ae)}
+.flow-sell{height:100%;background:linear-gradient(90deg,#b8657f,#ec93a9)}
+.risk-note{margin:0 10px 9px;padding:5px 6px;background:#28201e;border-left:2px solid #e9ab70;color:#f1cda4;font-size:9px;line-height:1.45}
+.risk-note.unknown{background:#181821;border-color:#514b64;color:#9e98ad}
