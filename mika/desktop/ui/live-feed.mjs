@@ -21,6 +21,9 @@ function safeRow(raw,source,now=Date.now()/1000){
   volume_5m:finite(raw?.volume_5m??raw?.volume?.m5),
   buys_5m:finite(raw?.buys_5m??raw?.txns?.m5?.buys),
   sells_5m:finite(raw?.sells_5m??raw?.txns?.m5?.sells),
+  price_change_5m_pct:finite(raw?.price_change_5m_pct??raw?.priceChange?.m5),
+  bundler_rate:finite(raw?.bundler_trader_amount_rate??raw?.bundler_rate??raw?.security?.bundler_trader_amount_rate),
+  holder_concentration_rate:finite(raw?.top_10_holder_rate??raw?.holder_concentration_rate),
   image_url:safeImageUrl(findStr(raw?.image_url,raw?.logo_url,raw?.logo,raw?.icon,raw?.imageUrl,raw?.logoURI,raw?.image?.url,raw?.metadata?.image,raw?.info?.imageUrl)),
   socials:normalizeSocials(raw?.socials||raw?.info?.socials||[]),
   pair_created_at:ts(raw?.pair_created_at??raw?.pairCreatedAt)||null,
@@ -60,7 +63,7 @@ export function normalizeDexQuotes(pairs,requested=[],now=Date.now()/1000){
   const row=safeRow({...pair,contract,pool:pair.pairAddress,
     symbol:pair.baseToken.symbol,name:pair.baseToken.name,
     volume_5m:pair.volume?.m5,buys_5m:pair.txns?.m5?.buys,sells_5m:pair.txns?.m5?.sells,
-    liquidity_usd:pair.liquidity?.usd,image_url:pair.info?.imageUrl||pair.image?.url||pair.baseToken?.imageUrl,socials:pair.info?.socials,source_url:pair.url},'DEX Screener',now);
+    price_change_5m_pct:pair.priceChange?.m5,liquidity_usd:pair.liquidity?.usd,image_url:pair.info?.imageUrl||pair.image?.url||pair.baseToken?.imageUrl,socials:pair.info?.socials,source_url:pair.url},'DEX Screener',now);
   if(!row)return [];
   row.dex_id=pair.dexId||null;row.launchpad_proof=pumpProof(pair)?'Pump.fun DEX':'Token quote only';
   return [row];
@@ -76,7 +79,7 @@ export function mergeLiveRows(collections){
   const chosen=(row.observed_at||0)>=(prev.observed_at||0)?row:prev;
   const other=chosen===row?prev:row;
   const merged={...other,...chosen,providers};
-  for(const key of ['market_cap','liquidity','volume_5m','buys_5m','sells_5m','image_url','socials','source_url'])if(merged[key]==null || (key==='socials' && !merged[key]?.length))merged[key]=other[key]??null;
+  for(const key of ['market_cap','liquidity','volume_5m','buys_5m','sells_5m','price_change_5m_pct','bundler_rate','holder_concentration_rate','image_url','socials','source_url'])if(merged[key]==null || (key==='socials' && !merged[key]?.length))merged[key]=other[key]??null;
   grouped.set(k,merged);
  }}return [...grouped.values()].sort((a,b)=>(b.observed_at||0)-(a.observed_at||0));
 }
