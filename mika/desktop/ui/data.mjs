@@ -1,5 +1,5 @@
 import {groupMarkets,normalizeRadarRow} from './domain.mjs';
-import {normalizeTrenches,normalizeGeckoNewPools,normalizeDexQuotes,mergeLiveRows} from './live-feed.mjs';
+import {normalizeTrenches,normalizeGeckoNewPools,normalizeDexQuotes,normalizePumpMetadata,mergeLiveRows} from './live-feed.mjs';
 /** Native read-only commands; all requests use existing JARVIS GET routes. */
 function parse(body){ if(typeof body==='object' && body!==null)return body;try{return JSON.parse(body)}catch{throw Error('Core returned invalid JSON')} }
 function validMint(mint){const s=String(mint||'').trim();if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s))throw Error('Invalid Solana mint address');return s}
@@ -35,6 +35,7 @@ export function createClient(coreGet,nativeInvoke=null){
       }
       return result;
     },
+    async pumpMetadata(mint){const address=validMint(mint);return normalizePumpMetadata(await native('market_pump_metadata',{mint:address}),address)},
     async models(){return (await native('ollama_models')).models||[]},
     async chat(model,history,context){
       const result=await native('ollama_chat',{model,history,context:JSON.stringify(context||{}).slice(0,6500)});
