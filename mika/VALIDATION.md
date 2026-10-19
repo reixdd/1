@@ -1,26 +1,15 @@
-# v0.3 verification record (October 18, 2026)
+# MIKA v0.2 verification ledger
 
-## Verified locally with Node.js 22
+- Local JavaScript tests: run `cd desktop && npm test` and record result below.
+- JS syntax checks: `node --check` each `desktop/ui/*.mjs`.
+- Rust compile, integration, and Windows installer: require CI/Windows; do not infer from JS tests.
+- Live external feed behavior: requires network, configured providers and on-device smoke test. Mock tests validate parsing, not provider uptime.
+- The previous v0.1 installer remains the known deployed version until a later v0.2 build is independently confirmed.
+- New code must not permit buys, swaps, wallets, key handling or cloud LLM fallbacks.
 
-Run from each directory: `npm test` in desktop, web, cloud, connector; `node --check` on every ES module.
+## 0.4.1 source-level checks and limitations
 
-- Desktop tests: token provenance, media/social validation, comparable cap bars, risk/unknown fields, AI model filters, watch persistence and snapshot changes.
-- Web transport tests: same-origin routing, malformed mint rejection, explicit provider error states.
-- Cloud tests: signed sessions, challenge enforcement, exact Origin, device bearer token, queue capacity and rate caps, job ownership, lease replay and expiration, full mocked job lifecycle.
-- Connector tests: default public OFF, HTTPS relay URL, embedding-model rejection and sanitized market context.
-
-## Not verified here
-
-- Cloudflare Worker/Durable Object production runtime and quotas; no public deployment.
-- Cloudflare Turnstile real issuance and browser UI rendering.
-- Windows Rust build after v0.3 changes (local container lacks cargo); GitHub Actions build needed.
-- Live provider feeds; upstream API caching and rate limiting vary.
-- Real Ollama model inference on owner's PC; v0.3 timeout/config was checked in source only.
-- Browser preview blocked by sandbox browser policy; static asset server served index with HTTP 200, but browser rendering smoke test was unavailable.
-- Complete security review by independent reviewer, production penetration tests, human moderation/abuse testing.
-
-The earlier v0.2 installer remains your known last installed version until v0.3 Windows CI and the on-device smoke test pass.
-
-
-## v0.4 development verification
-Desktop 71, web 3, cloud 11, connector 3, community 3 JS tests passed locally. Windows build, GMGN real-API smoke test, on-chain creator history and production feedback backend are pending independent verification. No public reports endpoint deployed.
+- Node desktop tests: 83 passed on development container. Web: 3; cloud relay: 11; connector: 3; community policy: 3.
+- Fixed Mayhem classification, provider-supplied social normalization, source fusion, strict social-only rows, filter view migration, source-separated first-sighting baselines and settings overlay.
+- Windows WebView settings interaction, native Tauri build and live upstream Pump.fun/GMGN response require Windows GitHub CI plus manual owner smoke test; browser headless smoke-test was inconclusive in current environment.
+- This change does not validate the underlying risk claims and does not deploy public services.

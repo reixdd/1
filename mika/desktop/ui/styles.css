@@ -66,3 +66,13 @@
 .app[data-accent="white"]{--accent:#F1F1F1;--accent2:#D0D0D0}
 .app[data-accent="rose"]{--accent:#F4A4C7;--accent2:#D275A0}
 .app[data-accent="amber"]{--accent:#F5BB70;--accent2:#CE9655}
+
+/* v0.4.1: prominent research controls and settings popover (avoid opening below window). */
+.tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.social-required{grid-column:1/-1;font-size:10px;color:#b5e5d2;padding:3px 0}
+.settings{position:relative;z-index:40}
+.settings-content:not([hidden]){position:fixed;z-index:90;bottom:72px;left:max(12px,calc(50% - 266px));width:min(calc(100vw - 24px),530px);max-height:min(70vh,540px);overflow-y:auto;padding:8px 12px 12px;border:1px solid var(--accent);border-radius:12px;background:#111321;box-shadow:0 2px 36px #000c}
+.settings-heading[aria-expanded="true"]{color:var(--accent);background:#1c172c}
+.traction-mode-control{position:sticky;top:0;background:#0c0d18;z-index:1}
+.token-actions{flex-wrap:wrap}
+@media(max-width:390px){.settings-content:not([hidden]){left:12px;width:calc(100vw - 24px)}}

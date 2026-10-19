@@ -1,6 +1,6 @@
 {
   "name": "mika-desktop",
-  "version": "0.4.0-rc1",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "description": "MIKA research-only companion for JARVIS",

@@ -10,4 +10,4 @@ export function sourceXUrl(row){
  const host=new URL(url).hostname.toLowerCase();
  return ['x.com','www.x.com','twitter.com','www.twitter.com'].includes(host)&&new URL(url).pathname.length>1?url:null;
 }
-export function buildTokenLinks(row){return {gmgn:gmgnTokenUrl(row?.contract||row?.mint),x:sourceXUrl(row),chart:safeExternalUrl(row?.source_url)};}
+export function buildTokenLinks(row){const socials=normalizeSocials(row?.socials);return {gmgn:gmgnTokenUrl(row?.contract||row?.mint),x:sourceXUrl(row),telegram:socials.find(v=>v.kind==='telegram')?.url||null,website:socials.find(v=>v.kind==='website')?.url||null,chart:safeExternalUrl(row?.source_url)};}

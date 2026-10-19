@@ -1,45 +1,52 @@
-# MIKA v0.3 — desktop companion + public website preview
+# MIKA v0.2 — Local research companion
 
-MIKA is a **research-only** Solana AI companion. This repository contains the existing Windows Tauri desktop, an independent browser UI, and source for an *opt-in* public chat relay backed by the owner's local Ollama model. It never places trades, signs transactions or connects wallets.
+MIKA is a **research-only** Windows 11 desktop sidecar, powered by a separate Tauri 2 shell and the existing JARVIS research core. It does not operate wallets, make transactions, rank winning coins, or offer investment recommendations.
 
-## Status
+## What's changed in this candidate
 
-- Desktop UI: market cards have provider-attributed token images, X/Chart links, full-contract Copy, comparative market-cap bars, and model selection that excludes embeddings. The Ollama native request timeout was lengthened for cold starts. **Windows binary requires CI build and on-device verification**.
-- Web UI: responsive Scan, Traction, Watch and Ask using only same-origin API routes, not Tauri globals. Public data is fetched only from approved API origins by the Worker. Browser preview is not a deployed website.
-- Cloud Worker: Turnstile-verified sessions, signed HttpOnly cookie, strict Origin checks, 3/min and 15/day per visitor, 100/day globally, queue size 8 and concurrency 1. Device requests require a separate secret; the Durable Object owns admission/lease state. **Not deployed**.
-- Local connector: optional outbound HTTPS polling from owner's PC to Worker; only reads fixed JARVIS dossier route and talks to Ollama on 127.0.0.1:11434. Default OFF; public serving must be explicitly enabled. **Not installed or enabled**.
+- Scan combines read-only GMGN Trenches and independently retrieved GeckoTerminal new pools with **confirmed Pump.fun DEX/launchpad provenance**. JARVIS's narrow canonical radar no longer blocks an otherwise available public launchpad feed. Unsupported launchpads are excluded; unverified platform identity does not produce a guessed token.
+- Watch displays full contract addresses with Copy, requests current DEX Screener market-cap observations, and labels provider/request timestamps.
+- Traction shows the observation queue even before two comparable snapshots exist. Material changes require compatible provider/pool and at least two timestamps.
+- Ask MIKA now calls **local Ollama text chat**, with short conversational history, automatically enumerating installed models, and selected-token context. She can have casual conversation outside market topics. Tone is friendly, skeptical, and playful but not immersive-romantic.
+- MIKA requests one batch of up to 30 token quotes per second when tokens are present, rotates larger watchlists, and backs off after errors. **This is request cadence, not guaranteed 1-second fresh market data.** Provider caching is out of MIKA's control.
 
-## Source structure
+## Sources and limits
 
-- `desktop/`: existing Tauri v0.2 client enhanced with v0.3 features
-- `web/`: static public website shell; browser transport, cards, watchlist
-- `cloud/`: Cloudflare Worker, Durable Object and tests (preview-only)
-- `connector/`: outbound local Ollama connector, opt-in only
-- `docs/superpowers/specs/`: accepted architectural design
-- `docs/superpowers/plans/`: staged implementation and test plan
+- JARVIS Core (localhost port 8768): GMGN read-only CLI, evidence summaries where available.
+- GeckoTerminal public API: confirmed Pump.fun DEX new pools, fetched roughly every 40 seconds; actual coverage is limited by caching and availability.
+- DEX Screener public API: read-only quotes for up to 30 token addresses per request. Its documented token endpoint request limit is 300/minute; MIKA requests approximately 60/minute at most for the quotes task, and stops/backoffs on failures.
+- Ollama (localhost port 11434): local chat, no cloud fallback.
 
-## Local source checks
+A provider may legitimately return no confirmed Pump.fun pools. MIKA must show an empty state rather than inventing tokens. New-pool feeds are not a complete or instant firehose of every launch.
+
+## Running from source on Windows
+
+Prerequisites: Node.js 20+, Rust 1.90+, Microsoft Visual Studio C++ Build Tools, WebView2. Existing JARVIS Core at `http://127.0.0.1:8768` is recommended but not necessary for GeckoTerminal/DEX read-only data.
 
 ```powershell
-cd desktop
-npm.cmd test
-# to run the Windows desktop from source (requires Rust + C++ Build Tools):
+cd mika\desktop
 npm.cmd install
+npm.cmd test
 npm.cmd run dev
 ```
 
-Additional Node-only tests: `cd web; npm test`, `cd cloud; npm test`, `cd connector; npm test`. All these tests do not require API credentials or funds.
+For local Ask MIKA, start Ollama and ensure at least one model is installed. If unavailable, the UI reports that; it does not pretend to chat. The first available local model is selected, preferring `qwen3.5:4b` if present. Never paste secrets, private keys or passwords into chat.
 
-## Public website deployment: not automatic
+**This source-only candidate needs a successful Windows Tauri build and live-provider smoke test before an installer can be called verified.** Run `npm.cmd run build` to build it on your Windows environment.
 
-**DO NOT DEPLOY before reviewing the security/privacy and terms.** `cloud/wrangler.jsonc` contains placeholder `PUBLIC_ORIGIN` and `TURNSTILE_SITE_KEY`; replace with your domain and Turnstile site key. Configure Worker secrets `SESSION_HMAC_SECRET`, `TURNSTILE_SECRET`, `LOCAL_CONNECTOR_SECRET` in your private Cloudflare account, never in the repository or client. Configure a Cloudflare Workers route and the Durable Object binding. Make sure no open direct ports to Ollama or JARVIS exist. Confirm Turnstile hostname verification, signed-cookie and rate-limit integration, production CSP, quota, pricing, retention, and stop/restart behavior with a real deployment smoke test. The Cloudflare platform may have additional account/plan requirements.
+## Open-source research skill
 
-On your Windows PC, the connector must be configured explicitly with `MIKA_PUBLIC_ENABLED=1`, `MIKA_PUBLIC_RELAY_ORIGIN`, `MIKA_PUBLIC_CONNECTOR_TOKEN` (matching Worker secret), and a **text chat model** name in `MIKA_PUBLIC_CHAT_MODEL`. It must never be installed as an automatically-starting service without owner consent. Stop process to revoke live serving; rotate exposed device credentials promptly.
+`skills/market-research/SKILL.md` describes an embedded read-only behavior policy. It is **not** a separately installed GMGN/agent framework extension. Avoid installing trading, swapping or account-management skills into this read-only sidecar.
 
-Public messages pass through a cloud relay to your local machine. Provide visitors with a privacy notice and do not collect sensitive personal information.
+## Repository isolation
 
-**Live verification pending:** Cloudflare deploy, Turnstile, real Ollama/JARVIS API connection, provider credentials, and Windows installer smoke test. Never label a missing data field or stale source as live/safe.
+Original project lives in `reixdd/1` on a MIKA-specific branch under `mika/`; do not merge into JARVIS main. DIT and Supabase remain untouched.
 
+## MIKA 0.4.1 research-only discovery hotfix
 
-## v0.4 evidence radar preview
-Three desktop tabs: Scan, Traction, Watch (Ask removed). Research filters default to under $30,000 market cap and under 30% GMGN-reported bundling. Unverified evidence is isolated, not passed. Creator details are provider-reported pending independently verified chain events. Public feedback and Supabase migration are NOT deployed. Accent colors are cosmetic. No trading or signing.
+- Scan and Traction include only tokens with source-supplied, validated X or Telegram links. Missing social information stays excluded; official project identity and safety are not established by a social account.
+- Excludes launchpad records tagged Mayhem or Mayhem agent. A pool/DEX label by itself does not establish standard Pump.fun origin; such Gecko-only candidates are withheld when origin is unknown. This may leave fewer entries or an empty feed when GMGN is unavailable.
+- Retains X, Telegram, and website links from multiple provider records, rather than silently replacing one with another.
+- Traction defaults to Within limits; unverified bundle metrics have their own category and do not pass an enabled bundle threshold. A first-sighting market-cap change uses compatible provider/pool observations, is historical, and is not predictive.
+- Settings are displayed in an accessible, visible floating drawer with Escape to close.
+- Provider polling, request rate limits, cached values and absent metadata can delay new matches. All information is research-only, not a reason to trade.

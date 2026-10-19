@@ -5,9 +5,17 @@ const mint = row => String(row?.address||row?.contract||row?.mint||row?.token_ad
 const isMint = s => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s||'');
 const findStr = (...values) => values.find(v=>typeof v==='string' && v.trim())||'';
 const normalizePlatform = value => String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const normalizedPlatform = value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const originLabel = row=>row?.launchpad_platform??row?.launchpadPlatform??row?.launchpad??row?.origin_platform??row?.originalLaunchpad??row?.platform;
 export function pumpProof(row){
- const id=normalizePlatform(row?.dexId||row?.dex_id||row?.launchpad_platform||row?.launchpadPlatform||row?.platform||row?.dex?.id||row?.dex).replace(/^solana/, '');
- return ['pumpfun','pumpswap','pumpmayhem'].includes(id);
+ if(row?.is_mayhem===true||row?.isMayhem===true||row?.mayhem===true)return false;
+ const platformFields=[row?.launchpad_platform,row?.launchpadPlatform,row?.launchpad,row?.origin_platform,row?.originalLaunchpad,row?.platform,row?.dexId,row?.dex_id,row?.dex?.id,row?.dex];
+ if(platformFields.some(v=>/mayhem|pumpagent|pumpaiagent/.test(normalizedPlatform(v))))return false;
+ const origin=normalizedPlatform(originLabel(row));
+ if(origin)return ['pumpfun','pumpdotfun'].includes(origin);
+ const id=normalizedPlatform(row?.dexId||row?.dex_id||row?.dex?.id||row?.dex).replace(/^solana/,'');
+ // Trading on PumpSwap alone does not establish a non-Mayhem Pump.fun launch.
+ return id==='pumpfun';
 }
 function safeRow(raw,source,now=Date.now()/1000){
  const contract=mint(raw);if(!isMint(contract))return null;
@@ -26,7 +34,7 @@ function safeRow(raw,source,now=Date.now()/1000){
   holder_concentration_rate:finite(raw?.top_10_holder_rate??raw?.holder_concentration_rate),
   evidence_source:source==='GMGN'?'GMGN Trenches':null,
   image_url:safeImageUrl(findStr(raw?.image_url,raw?.logo_url,raw?.logo,raw?.icon,raw?.imageUrl,raw?.logoURI,raw?.image?.url,raw?.metadata?.image,raw?.info?.imageUrl)),
-  socials:normalizeSocials([...(Array.isArray(raw?.socials)?raw.socials:Array.isArray(raw?.info?.socials)?raw.info.socials:[]),...(raw?.twitter||raw?.twitter_url||raw?.twitter_username?[{type:'twitter',url:raw.twitter||raw.twitter_url,handle:raw.twitter_username}]:[])]),
+  socials:normalizeSocials([...(Array.isArray(raw?.socials)?raw.socials:Array.isArray(raw?.info?.socials)?raw.info.socials:[]),...(raw?.twitter||raw?.twitter_url||raw?.twitter_username?[{type:'twitter',url:raw.twitter||raw.twitter_url,handle:raw.twitter_username||raw.twitter}]:[]),...(raw?.telegram||raw?.telegram_url?[{type:'telegram',url:raw.telegram||raw.telegram_url}]:[]),...(raw?.website||raw?.website_url?[{type:'website',url:raw.website||raw.website_url}]:[]),...(Array.isArray(raw?.info?.websites)?raw.info.websites.map(v=>({type:'website',url:v?.url})):[])]),
   pair_created_at:ts(raw?.pair_created_at??raw?.pairCreatedAt)||null,
   source_url:findStr(raw?.url,raw?.pair_url)||null,
   launchpad_proof:raw?.launchpad_proof||source,
@@ -47,7 +55,8 @@ export function normalizeGeckoNewPools(body,now=Date.now()/1000){
  const included=new Map((body?.included||[]).map(r=>[r?.id,r?.attributes||{}]));
  return (body?.data||[]).flatMap(pool=>{
   const dex=pool?.relationships?.dex?.data?.id;
-  if(!pumpProof({dexId:dex}))return [];
+  const origin=pool?.attributes?.launchpad_platform||pool?.attributes?.launchpad||pool?.attributes?.origin_platform;
+  if(!origin||!pumpProof({dexId:dex,launchpad_platform:origin}))return [];
   const attrs=pool?.attributes||{}, tokenId=pool?.relationships?.base_token?.data?.id||'';
   const token=included.get(tokenId)||{},address=tokenId.replace(/^solana_/,''),m5=attrs.transactions?.m5||{};
   const row=safeRow({address,symbol:token.symbol,name:token.name,pool:attrs.address,
@@ -79,7 +88,8 @@ export function mergeLiveRows(collections){
   const providers=[...new Set([...(prev.providers||[]),row.source||row.provider].filter(Boolean))];
   const chosen=(row.observed_at||0)>=(prev.observed_at||0)?row:prev;
   const other=chosen===row?prev:row;
-  const merged={...other,...chosen,providers};
+  const merged={...other,...chosen,providers,launchpad_proof:prev.launchpad_proof==='GMGN'?'GMGN':row.launchpad_proof||prev.launchpad_proof,
+   socials:normalizeSocials([...(chosen.socials||[]),...(other.socials||[])])};
   for(const key of ['market_cap','liquidity','volume_5m','buys_5m','sells_5m','price_change_5m_pct','bundler_rate','holder_concentration_rate','image_url','socials','source_url'])if(merged[key]==null || (key==='socials' && !merged[key]?.length))merged[key]=other[key]??null;
   grouped.set(k,merged);
  }}return [...grouped.values()].sort((a,b)=>(b.observed_at||0)-(a.observed_at||0));
@@ -90,9 +100,7 @@ export function metadataFromTokenDossier(gmgn,mintAddress){
  const wrapper=gmgn?.info||gmgn?.token_info||gmgn?.data||gmgn||{};
  const info=wrapper?.data?.data||wrapper?.data||wrapper;
  if(!info||typeof info!=='object'||Array.isArray(info))return null;
- const socials=Array.isArray(info.socials)?info.socials:
-  (info.twitter||info.twitter_url?[{type:'twitter',url:info.twitter||info.twitter_url}]:[]);
- return safeRow({...info,address:mintAddress,socials},'GMGN token info');
+ return safeRow({...info,address:mintAddress},'GMGN token info');
 }
 
 /** Original Pump.fun uploaded metadata; never a replacement market quote. */
@@ -100,6 +108,5 @@ export function normalizePumpMetadata(payload,mintAddress){
  const info=payload?.data?.data||payload?.data||payload;
  if(!info||typeof info!=='object'||Array.isArray(info))return null;
  if(info.mint && info.mint!==mintAddress)return null;
- const social=(typeof info.twitter==='string'&&info.twitter)?[{type:'twitter',url:info.twitter}]:[];
- return safeRow({...info,address:mintAddress,image_url:info.image_uri||info.image||info.image_url,socials:social},'Pump.fun metadata');
+ return safeRow({...info,address:mintAddress,image_url:info.image_uri||info.image||info.image_url},'Pump.fun metadata');
 }

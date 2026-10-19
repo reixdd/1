@@ -12,7 +12,7 @@ test('GMGN empty return means no evidence; does not admit unrelated launchpads',
  assert.equal(normalizeTrenches({data:{new_creation:[{address:B,symbol:'X'}]}}).length,0);
 });
 test('GeckoTerminal only admits confirmed Pump.fun DEX relationships',()=>{
- const body={data:[{id:'solana_poolA',attributes:{address:'poolA',name:'ROLL / SOL',reserve_in_usd:'4000',pool_created_at:'2026-10-18T20:00:00Z',transactions:{m5:{buys:2,sells:1}},volume_usd:{m5:'850'}},relationships:{base_token:{data:{id:'solana_'+A}},dex:{data:{id:'solana_pump-fun'}}}},{id:'solana_poolB',attributes:{},relationships:{base_token:{data:{id:'solana_'+B}},dex:{data:{id:'raydium'}}}}],included:[{id:'solana_'+A,attributes:{name:'Rollage',symbol:'ROLL'}}]};
+ const body={data:[{id:'solana_poolA',attributes:{address:'poolA',launchpad_platform:'Pump.fun',name:'ROLL / SOL',reserve_in_usd:'4000',pool_created_at:'2026-10-18T20:00:00Z',transactions:{m5:{buys:2,sells:1}},volume_usd:{m5:'850'}},relationships:{base_token:{data:{id:'solana_'+A}},dex:{data:{id:'solana_pump-fun'}}}},{id:'solana_poolB',attributes:{},relationships:{base_token:{data:{id:'solana_'+B}},dex:{data:{id:'raydium'}}}}],included:[{id:'solana_'+A,attributes:{name:'Rollage',symbol:'ROLL'}}]};
  const out=normalizeGeckoNewPools(body);assert.equal(out.length,1);assert.equal(out[0].contract,A);assert.equal(out[0].liquidity,4000);assert.equal(out[0].buys_5m,2);
 });
 test('dex quotes choose base mint and reject mismatched pair token',()=>{

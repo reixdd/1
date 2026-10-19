@@ -4,10 +4,10 @@ import {mergeLiveRows,metadataFromTokenDossier} from './live-feed.mjs';
 import {classifyRisk,extractGMGNEvidence,providerRatio} from './risk.mjs';
 import {compareSnapshots,rankTractionRows,latestActivityByMint,buySellMix,tractionSignal} from './traction.mjs';
 import {createPreferencesStore} from './storage.mjs';
-import {marketCapRelative, safeExternalUrl} from './token-media.mjs';
+import {marketCapRelative, safeExternalUrl, normalizeSocials} from './token-media.mjs';
 import {projectLaunchEvidence,mergeEvidence,formatRatio} from './security-evidence.mjs';
 import {createSecurityCache} from './security-cache.mjs';
-import {partitionCandidates,sortCandidates} from './research-filter.mjs';
+import {partitionCandidates,sortCandidates,eligibleSocial} from './research-filter.mjs';
 import {buildTokenLinks} from './token-links.mjs';
 import {summarizeTokenEvidence} from './research-summary.mjs';
 import {createCreatorCache,} from './creator-cache.mjs';
@@ -52,8 +52,13 @@ function character(mode){if(state.busy && mode==='IDLE')return;$('app').dataset.
 function tab(name){if(!['scan','traction','watch'].includes(name))return;state.active=name;for(const b of document.querySelectorAll('.tab')){b.classList.toggle('current',b.dataset.tab===name);b.setAttribute('aria-selected',String(b.dataset.tab===name))}for(const v of document.querySelectorAll('.view'))v.hidden=v.id!==`view-${name}`;if(name==='traction')renderTraction();if(name==='watch')renderWatch()}
 function stat(k,v){const d=el('div','stat');d.append(el('label','',k),el('strong','',v));return d}
 function market(mint){return state.quotes.get(mint)||state.rows.find(r=>r.contract===mint)||null}
+function liveSocialRow(row){const q=market(row.contract)||{},meta=store.tokenMeta(row.contract)||{};return {...meta,...row,
+  image_url:row.image_url||q.image_url||meta.image_url||null,
+  socials:normalizeSocials([...(row.socials||[]),...(q.socials||[]),...(meta.socials||[])]),
+  source_url:row.source_url||q.source_url||meta.source_url||null};}
+function visibleRows(){return state.rows.map(liveSocialRow).filter(eligibleSocial)}
 function activeSourceText(){return Object.entries(state.sources).map(([k,v])=>`${k} ${v}`).join(' · ')||'Waiting for providers'}
-function sourceStatus(){const now=Date.now();$('feedSources').textContent=`${activeSourceText()} · provider prices may be cached`;const count=state.rows.length;$('feedStamp').textContent=`${count} Pump.fun pairs · ${state.lastFeed?new Date(state.lastFeed).toLocaleTimeString():'no fetch'}`;
+function sourceStatus(){const now=Date.now();$('feedSources').textContent=`${activeSourceText()} · provider prices may be cached`;const count=visibleRows().length;$('feedStamp').textContent=`${count} social-backed / ${state.rows.length} confirmed Pump.fun pairs · ${state.lastFeed?new Date(state.lastFeed).toLocaleTimeString():'no fetch'}`;
  $('lastUpdated').textContent=state.lastQuote?`Quote check ${Math.floor((now-state.lastQuote)/1000)}s ago`:'No quotes';$('quoteStatus').textContent=state.quoteErrors?`Quote provider delayed · retrying · last check ${state.lastQuote?new Date(state.lastQuote).toLocaleTimeString():'none'}`:`Quotes requested ~1s apart when tokens are present · ${state.lastQuote?new Date(state.lastQuote).toLocaleTimeString():'awaiting first response'} · provider caching possible`;
  $('tractionStatus').textContent=state.rows.length?`${state.rows.length} launchpad tokens observed · ${store.events().length} historical changes`:'No verified launchpad tokens from configured providers yet';}
 function imageFor(row){
@@ -66,7 +71,7 @@ function imageFor(row){
 function externalLink(url,label){const safe=safeExternalUrl(url);if(!safe)return null;const a=el('a','mini-link',label);a.href=safe;a.target='_blank';a.rel='noopener noreferrer';a.title=`Open ${label}`;return a;}
 function tokenActions(row){const actions=el('div','token-actions');actions.append(button('⧉ CA',()=>copyCA(row.contract),'mini-action'));
  const links=buildTokenLinks(row);
- for(const [url,label] of [[links.gmgn,'↗ GMGN'],[links.x,'𝕏'],[links.chart,'↗ Chart']]){
+ for(const [url,label] of [[links.gmgn,'↗ GMGN'],[links.x,'𝕏'],[links.telegram,'Telegram'],[links.website,'Website'],[links.chart,'↗ Chart']]){
   const link=externalLink(url,label);if(link)actions.append(link);
  }
  return actions;}
@@ -103,21 +108,18 @@ function tokenCard(row,{traction=false,maxCap=null,event=null}={}){
   const status=el('span','traction-indicator'+(event?.change_pct<0||signal?.direction==='down'?' down':event||signal?.direction==='up'?'':' unknown'),label);
   wrap.dataset.activity=event?.kind||signal?.direction||'BASELINE';wrap.append(status);
  }
- const actions=tokenActions({...row,socials:row.socials?.length?row.socials:m.socials,source_url:row.source_url||m.source_url});wrap.append(actions);
+ const actions=tokenActions({...row,socials:row.socials?.length?row.socials:m.socials,source_url:row.source_url||m.source_url});actions.dataset.metadataKey=JSON.stringify({socials:row.socials,source_url:row.source_url});wrap.append(actions);
  return wrap;
 }
 function renderTokens(){
- const root=$('tokenList');
- if(!state.rows.length){clear(root);root.append(el('p','empty',`No confirmed Pump.fun launchpad pairs from connected sources. ${activeSourceText()}. JARVIS canonical eligibility is not required here.`));return}
+ const root=$('tokenList');const supported=visibleRows();
+ if(!supported.length){clear(root);root.append(el('p','empty',`No confirmed regular Pump.fun launches with a verified X/Telegram link yet (${state.rows.length} observed). MIKA is checking provider metadata; Mayhem and ambiguous-origin pools are excluded.`));return}
  // Reuse the same card/IMG nodes; a 1s quote refresh must not restart image downloads,
  // collapse the flex list or reset the user's scroll position.
  const previous=new Map([...root.querySelectorAll('.token-card[data-mint]')].map(card=>[card.dataset.mint,card]));
  const oldScroll=root.scrollTop,fragment=document.createDocumentFragment();
- for(const row of state.rows.slice(0,60)){
-  const m=market(row.contract)||row,known=store.tokenMeta(row.contract)||{},resolved={...known,...row,
-   image_url:row.image_url||m.image_url||known.image_url||null,
-   socials:row.socials?.length?row.socials:m.socials?.length?m.socials:known.socials||[],
-   source_url:row.source_url||m.source_url||known.source_url||null};
+ for(const row of supported.slice(0,60)){
+  const m=market(row.contract)||row,resolved=row;
   let card=previous.get(row.contract);
   if(!card){card=tokenCard(resolved);}else{
    const number=card.querySelector('.token-values strong'),detail=card.querySelector('.token-values span');
@@ -127,7 +129,7 @@ function renderTokens(){
    if(fallback&&resolved.image_url)fallback.replaceWith(imageFor(resolved));
    // Social links may arrive later than the initial GMGN token listing.
    const actions=card.querySelector('.token-actions');
-   if(actions&&resolved.socials?.length&&!actions.querySelector('a[title="Open 𝕏"]'))actions.replaceWith(tokenActions(resolved));
+   if(actions){const key=JSON.stringify({socials:resolved.socials,source_url:resolved.source_url});if(actions.dataset.metadataKey!==key){const fresh=tokenActions(resolved);fresh.dataset.metadataKey=key;actions.replaceWith(fresh);}}
    const note=card.querySelector('.risk-note');if(note)note.replaceWith(riskNote(resolved));
   }
   fragment.append(card);
@@ -153,12 +155,15 @@ function analysis(){const root=$('analysis');clear(root);if(!state.selected)retu
 }
 function renderTraction(){
  sourceStatus();const root=$('tractionList');clear(root);
- const options=store.researchFilters();
- const inputRows=state.rows.map(r=>evidenceRow({...store.tokenMeta(r.contract),...r}));
+ const options=store.researchFilters();const previousScroll=root.scrollTop;
+ const inputRows=visibleRows().map(r=>{const v=evidenceRow(r),current=market(r.contract)||r,baseline=store.firstSeenSnapshot(v.market_key,current.provider);
+  const same=baseline?.provider===current.provider&&(baseline?.pool||null)===(current.pool||null);
+  const growth=same&&baseline.market_cap>0&&current.market_cap!=null&&current.observed_at>baseline.observed_at?
+    (current.market_cap-baseline.market_cap)/baseline.market_cap*100:null;
+  return {...v,growth_since_seen_pct:growth};});
  const partitions=partitionCandidates(inputRows,options);
- $('tractionCounts').textContent=`Within filters ${partitions.within.length} · Unverified ${partitions.unverified.length} · Outside ${partitions.outside.length} · GMGN evidence may be delayed`;
- const rows=sortCandidates(options.view==='within'?partitions.within:options.view==='unverified'?partitions.unverified:
-    options.view==='outside'?partitions.outside:[...partitions.within,...partitions.unverified],options.sort).slice(0,24);
+ $('tractionCounts').textContent=`Socials verified ${inputRows.length}/${state.rows.length} · Within ${partitions.within.length} · Risk unverified ${partitions.unverified.length} · Outside ${partitions.outside.length} · historical/cached provider data`; 
+ const rows=sortCandidates(options.view==='unverified'?partitions.unverified:options.view==='outside'?partitions.outside:partitions.within,options.sort).slice(0,24);
  if(!rows.length){root.append(el('p','empty',`No tokens in this category. ${partitions.unverified.length} still need GMGN verification.`));return}
  const maxCap=Math.max(0,...rows.map(r=>finite(r.market_cap)||0));const latest=latestActivityByMint(store.events());
  const head=el('div','traction-tools');head.append(el('span','support','Research filters only · a low bundled ratio does not establish safety'));
@@ -170,14 +175,16 @@ function renderTraction(){
  for(const row of rows){
   const card=tokenCard(row,{traction:true,maxCap,event:latest.get(row.contract)||null});
   const bucket=partitions.unverified.includes(row)?'UNVERIFIED':partitions.outside.includes(row)?'OUTSIDE':'WITHIN FILTERS';
-  card.prepend(el('div','research-note',bucket+' · '+summarizeTokenEvidence(row,row.evidence).headline));root.append(card);
- }
+  card.prepend(el('div','research-note',bucket+' · '+summarizeTokenEvidence(row,row.evidence).headline));
+  if(row.growth_since_seen_pct!==null&&row.growth_since_seen_pct!==undefined){card.append(el('span','traction-indicator',`MC change since first observed quote: ${row.growth_since_seen_pct>0?'+':''}${row.growth_since_seen_pct.toFixed(1)}% · same source/pool`));}
+  root.append(card);
+ }root.scrollTop=previousScroll;
 }
 function renderWatch(){sourceStatus();const root=$('watchList');clear(root);const watched=store.watched();$('watchCount').textContent=`${watched.length} SAVED`;
  if(!watched.length){root.append(el('p','empty','No saved tokens yet. Select one on Scan.'));return}
  const maxCap=Math.max(0,...watched.map(key=>finite(market(key.startsWith('sol:')?key.slice(4):key)?.market_cap)||0));
  for(const key of watched){const mint=key.startsWith('sol:')?key.slice(4):key;const quote=market(mint)||{},known=store.tokenMeta(mint)||{},m={...known,...quote,
- image_url:quote.image_url||known.image_url||null,socials:quote.socials?.length?quote.socials:known.socials||[],source_url:quote.source_url||known.source_url||null};
+ image_url:quote.image_url||known.image_url||null,socials:normalizeSocials([...(quote.socials||[]),...(known.socials||[])]),source_url:quote.source_url||known.source_url||null};
  const card=el('div','watch-item');
  const head=el('div','watch-head');head.append(imageFor({...m,contract:mint,symbol:m.symbol||'?',image_url:m.image_url}),el('strong','',`${m.symbol||'Unknown'} · ${fmt(m.market_cap)}`));card.append(head);
  card.append(el('small','ca-full',mint),el('small','',`${m.observed_at?new Date(m.observed_at*1000).toLocaleTimeString():'Quote unavailable'} · ${m.source||m.provider||'No provider yet'} · provider may cache`));
@@ -194,7 +201,7 @@ async function refreshMissingMetadata(){
   return (!found || brokenArtwork.has(found)) && now-(metadataAttempts.get(x)||0)>600000;
  }).slice(0,2);
  if(!missing.length)return;
- metadataBusy=true;nextMetadataAt=now+4000;
+ metadataBusy=true;nextMetadataAt=now+5000;
  for(const mint of missing)metadataAttempts.set(mint,now);
  try{const results=await Promise.allSettled(missing.map(mint=>client.pumpMetadata(mint)));
   for(let i=0;i<results.length;i++){
@@ -208,7 +215,7 @@ async function refreshMissingMetadata(){
 function recordSnapshot(row){store.saveTokenMeta(row.contract,row);const norm=normalizeRadarRow(row),old=store.recentSnapshot(norm.market_key);if(old){const events=compareSnapshots(old,norm);if(events.length){store.saveEvents(events);if(state.active==='traction')character('ACTIVITY')}}store.saveSnapshot(norm.market_key,norm)}
 async function refreshQuotes(){if(state.quoteBusy||Date.now()<state.quoteRetryAt)return;const keys=[...new Set([...store.watched().map(k=>k.slice(4)),...state.rows.map(r=>r.contract),...(state.selected?[state.selected.mint]:[])])];if(!keys.length){sourceStatus();return}
  const offset=state.quoteCursor%keys.length,chunk=Array.from({length:Math.min(30,keys.length)},(_,i)=>keys[(offset+i)%keys.length]);state.quoteCursor=(offset+chunk.length)%keys.length;
- state.quoteBusy=true;try{const all=await client.quotes(chunk);const grouped=new Map();for(const quote of all){const old=grouped.get(quote.contract);if(!old||(quote.liquidity??0)>(old.liquidity??0))grouped.set(quote.contract,quote)}for(const quote of grouped.values()){recordSnapshot(quote);state.quotes.set(quote.contract,{...state.quotes.get(quote.contract),...quote,image_url:quote.image_url||market(quote.contract)?.image_url||null,socials:quote.socials?.length?quote.socials:market(quote.contract)?.socials||[]})}state.lastQuote=Date.now();state.quoteErrors=0;state.quoteRetryAt=0;renderTokens();if(state.selected)analysis();if(state.active==='traction')renderTraction();if(state.active==='watch')renderWatch()}catch(e){state.quoteErrors++;state.quoteRetryAt=Date.now()+Math.min(60000,1000*2**Math.min(state.quoteErrors,6));showError(`DEX quote provider unavailable: ${e.message||e}`)}finally{state.quoteBusy=false;sourceStatus()}}
+ state.quoteBusy=true;try{const all=await client.quotes(chunk);const grouped=new Map();for(const quote of all){const old=grouped.get(quote.contract);if(!old||(quote.liquidity??0)>(old.liquidity??0))grouped.set(quote.contract,quote)}for(const quote of grouped.values()){recordSnapshot(quote);state.quotes.set(quote.contract,{...state.quotes.get(quote.contract),...quote,image_url:quote.image_url||market(quote.contract)?.image_url||null,socials:normalizeSocials([...(quote.socials||[]),...(market(quote.contract)?.socials||[])])})}state.lastQuote=Date.now();state.quoteErrors=0;state.quoteRetryAt=0;renderTokens();if(state.selected)analysis();if(state.active==='traction')renderTraction();if(state.active==='watch')renderWatch()}catch(e){state.quoteErrors++;state.quoteRetryAt=Date.now()+Math.min(60000,1000*2**Math.min(state.quoteErrors,6));showError(`DEX quote provider unavailable: ${e.message||e}`)}finally{state.quoteBusy=false;sourceStatus()}}
 async function refreshFeed(){if(state.feedBusy)return;state.feedBusy=true;try{const health=await client.status();state.connection=health.connection;$('connection').textContent=health.connection==='CONNECTED'?'● CORE CONNECTED':'● CORE OFFLINE';$('connection').classList.toggle('online',health.connection==='CONNECTED');const feed=await client.liveFeed();state.sources=feed.sources;state.rows=mergeLiveRows([feed.rows]);state.lastFeed=Date.now();for(const row of state.rows){recordSnapshot(row)}if(feed.errors.length&&!state.rows.length)showError(feed.errors.join(' · ').slice(0,350));else showError('');character(state.rows.length?'IDLE':health.connection==='CONNECTED'?'IDLE':'OFFLINE');renderTokens();if(state.active==='traction')renderTraction();if(state.active==='watch')renderWatch();sourceStatus()}catch(e){showError(`Feed refresh failed: ${e.message||e}`)}finally{state.feedBusy=false}}
 async function scanToken(mint){if(state.busy)return;state.busy=true;showError('');$('tokenInput').value=mint;$('tokenForm').querySelector('button').disabled=true;character('SCANNING');try{state.selected=await client.token('sol',mint);const tokenMeta=metadataFromTokenDossier(state.selected.gmgn,mint);if(tokenMeta)store.saveTokenMeta(mint,tokenMeta);
  const info=state.selected.gmgn?.info?.data?.data||state.selected.gmgn?.info?.data||{};
@@ -221,12 +228,13 @@ function init(){const prefs=store.preferences();$('app').dataset.accent=prefs.ac
  $('uiDensity').value=prefs.density||'comfortable';$('app').dataset.density=prefs.density||'comfortable';
  $('customAccent').value=prefs.customAccent||'#A78BFA';
  if(prefs.customAccent&&prefs.accent==='custom')applyAccent($('app'),prefs.customAccent);
- for(const b of document.querySelectorAll('.tab'))b.addEventListener('click',()=>tab(b.dataset.tab));$('refresh').addEventListener('click',()=>{refreshFeed();refreshQuotes()});$('tokenForm').addEventListener('submit',e=>{e.preventDefault();scanToken($('tokenInput').value.trim())});$('settingsToggle').addEventListener('click',()=>{const c=$('settingsContent');c.hidden=!c.hidden;$('settingsToggle').setAttribute('aria-expanded',String(!c.hidden))});for(const [id,key] of [['avatarMode','mode'],['accentColor','accent'],['companionMood','mood'],['animationIntensity','animation']])$(id).addEventListener('change',e=>{store.setPreference(key,e.target.value);if(key==='accent'){const accent=e.target.value==='custom'?(store.preferences().customAccent||'#A78BFA'):normalizeAccent(e.target.value)?.hex;if(accent)applyAccent($('app'),accent)}$('app').dataset[key==='mode'?'mode':key==='accent'?'accent':'animation']=e.target.value;character($('app').dataset.character)});for(const id of ['maxMarketCap','maxBundlerRatio','tractionView','tractionSort'])$(id).addEventListener('change',()=>{
+ for(const b of document.querySelectorAll('.tab'))b.addEventListener('click',()=>tab(b.dataset.tab));$('refresh').addEventListener('click',()=>{refreshFeed();refreshQuotes()});$('tokenForm').addEventListener('submit',e=>{e.preventDefault();scanToken($('tokenInput').value.trim())});$('settingsToggle').addEventListener('click',()=>{const c=$('settingsContent');c.hidden=!c.hidden;$('settingsToggle').setAttribute('aria-expanded',String(!c.hidden));if(!c.hidden)requestAnimationFrame(()=>$('avatarMode').focus());});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('settingsContent').hidden){$('settingsContent').hidden=true;$('settingsToggle').setAttribute('aria-expanded','false');$('settingsToggle').focus();}});for(const [id,key] of [['avatarMode','mode'],['accentColor','accent'],['companionMood','mood'],['animationIntensity','animation']])$(id).addEventListener('change',e=>{store.setPreference(key,e.target.value);if(key==='accent'){const accent=e.target.value==='custom'?(store.preferences().customAccent||'#A78BFA'):normalizeAccent(e.target.value)?.hex;if(accent)applyAccent($('app'),accent)}if(key==='mode'||key==='accent'||key==='animation')$('app').dataset[key]=e.target.value;character($('app').dataset.character)});for(const id of ['maxMarketCap','maxBundlerRatio','tractionView','tractionSort']){const update=()=>{
   const maxCap=Number($('maxMarketCap').value),maxBundler=Number($('maxBundlerRatio').value);
   store.setResearchFilters({maxMarketCap:Math.min(250000,Math.max(0,Number.isFinite(maxCap)?maxCap:30000)),
    maxBundlerRatio:Math.min(1,Math.max(0,Number.isFinite(maxBundler)?maxBundler/100:.30)),
    view:$('tractionView').value,sort:$('tractionSort').value});renderTraction();
- });
+ };$(id).addEventListener('change',update);if(id==='maxMarketCap'||id==='maxBundlerRatio')$(id).addEventListener('input',update);}
  $('customAccent').addEventListener('change',()=>{const color=$('customAccent').value; if(normalizeAccent(color)){
   store.setCustomAccent(color);store.setPreference('accent','custom');$('accentColor').value='custom';applyAccent($('app'),color);
  }});
