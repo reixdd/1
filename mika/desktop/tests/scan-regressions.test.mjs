@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {rankTractionRows, latestActivityByMint} from '../ui/traction.mjs';
-import {normalizeTrenches, normalizeDexQuotes, metadataFromTokenDossier} from '../ui/live-feed.mjs';
+import * as tokenSource from '../ui/live-feed.mjs';
+const {normalizeTrenches,normalizeDexQuotes,metadataFromTokenDossier}=tokenSource;
 import {createPreferencesStore} from '../ui/storage.mjs';
 const styles=readFileSync(new URL('../ui/styles.css',import.meta.url),'utf8');
 const app=readFileSync(new URL('../ui/app.mjs',import.meta.url),'utf8');
@@ -37,4 +38,11 @@ test('direct GMGN token dossier enriches image and X metadata',()=>{
  const r=metadataFromTokenDossier({info:{data:{data:{symbol:'FULL',logo:'https://ipfs.io/ipfs/test',socials:[{type:'twitter',url:'https://x.com/FullToken'}]}}}},ca);
  assert.equal(r.image_url,'https://ipfs.io/ipfs/test');
  assert.equal(r.socials[0].url,'https://x.com/FullToken');
+});
+test('Pump.fun original metadata supplies uploaded artwork and source-provided social link',()=>{
+ const {normalizePumpMetadata}=tokenSource;
+ const result=normalizePumpMetadata({mint:ca,name:'Real Art',symbol:'ART',image_uri:'https://ipfs.io/ipfs/real-art',twitter:'https://x.com/realart'},ca);
+ assert.equal(result.image_url,'https://ipfs.io/ipfs/real-art');
+ assert.equal(result.socials[0].url,'https://x.com/realart');
+ assert.equal(normalizePumpMetadata({mint:'DifferentMint',image_uri:'https://ipfs.io/ipfs/fake'},ca),null);
 });
