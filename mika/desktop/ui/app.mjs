@@ -1,8 +1,8 @@
 import {createClient} from './data.mjs';
 import {normalizeRadarRow,freshness,finite,tokenKey} from './domain.mjs';
 import {mergeLiveRows,metadataFromTokenDossier} from './live-feed.mjs';
-import {classifyRisk,extractGMGNEvidence} from './risk.mjs';
-import {compareSnapshots,rankTractionRows,latestActivityByMint} from './traction.mjs';
+import {classifyRisk,extractGMGNEvidence,providerRatio} from './risk.mjs';
+import {compareSnapshots,rankTractionRows,latestActivityByMint,buySellMix,tractionSignal} from './traction.mjs';
 import {createPreferencesStore} from './storage.mjs';
 import {marketCapRelative, safeExternalUrl} from './token-media.mjs';
 import {selectChatModel,pruneConversation} from './chat-utils.mjs';
@@ -10,10 +10,10 @@ const $=id=>document.getElementById(id);
 const store=createPreferencesStore(window.localStorage);
 const invoke=window.__TAURI__?.core?.invoke;
 const client=createClient(async path=>{if(!invoke)throw Error('Native MIKA bridge unavailable');return invoke('core_get',{path})},async(command,args)=>{if(!invoke)throw Error('Native bridge unavailable');return invoke(command,args)});
-const metadataAttempts=new Map();let metadataBusy=false,nextMetadataAt=0;
+const metadataAttempts=new Map(),brokenArtwork=new Map();let metadataBusy=false,nextMetadataAt=0;
 const state={connection:'OFFLINE',rows:[],selected:null,active:'scan',busy:false,feedBusy:false,quoteBusy:false,
  quoteCursor:0,quotes:new Map(),events:[],sources:{},lastFeed:0,lastQuote:0,quoteRetryAt:0,quoteErrors:0,
- chatHistory:[],models:[],modelError:null};
+ chatHistory:[],models:[],modelError:null,tractionMode:'flow'};
 const short=s=>s?`${s.slice(0,6)}…${s.slice(-5)}`:'—';
 const fmt=(value,unit='$')=>{const v=finite(value);if(v===null)return '—';return unit+(Math.abs(v)>=1e6?(v/1e6).toFixed(2)+'M':Math.abs(v)>=1e3?(v/1e3).toFixed(1)+'K':v<.01?v.toPrecision(3):v.toFixed(2))};
 const el=(tag,cls,content)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(content!==undefined)n.textContent=String(content);return n};
@@ -32,7 +32,8 @@ function sourceStatus(){const now=Date.now();$('feedSources').textContent=`${act
 function imageFor(row){
  const holder=el('span','avatar',(row.symbol||'?').slice(0,1).toUpperCase());
  const url=row.image_url;
- if(url){const img=el('img','token-art');img.src=url;img.alt=`${row.symbol||'Token'} artwork (provider supplied)`;img.loading='lazy';img.referrerPolicy='no-referrer';img.addEventListener('error',()=>img.replaceWith(holder),{once:true});return img;}
+ const now=Date.now();
+ if(url && (!brokenArtwork.has(url) || now-(brokenArtwork.get(url)||0)>180000)){const img=el('img','token-art');img.src=url;img.alt=`${row.symbol||'Token'} artwork (provider supplied)`;img.loading='lazy';img.referrerPolicy='no-referrer';img.addEventListener('error',()=>{brokenArtwork.set(url,Date.now());img.replaceWith(holder)},{once:true});return img;}
  return holder;
 }
 function externalLink(url,label){const safe=safeExternalUrl(url);if(!safe)return null;const a=el('a','mini-link',label);a.href=safe;a.target='_blank';a.rel='noopener noreferrer';a.title=`Open ${label}`;return a;}
@@ -40,16 +41,37 @@ function tokenActions(row){const actions=el('div','token-actions');actions.appen
  const x=row.socials?.find(x=>x.kind==='x');const link=externalLink(x?.url,'𝕏');if(link)actions.append(link);
  const source=externalLink(row.source_url,'↗ Chart');if(source)actions.append(source);return actions;}
 function capBar(cap,max){const wrap=el('div','cap-meter'),fill=el('div','cap-meter-fill');const percent=marketCapRelative(finite(cap),max);if(percent!==null){fill.style.width=`${percent}%`;wrap.append(fill);}else wrap.textContent='Market cap not verified';wrap.title=percent===null?'No comparable market cap':`${percent.toFixed(1)}% of largest displayed market cap ${fmt(max)}`;return wrap;}
+function riskNote(row){
+ const labels=[];
+ const bundlers=providerRatio(row?.bundler_rate),holders=providerRatio(row?.holder_concentration_rate);
+ if(bundlers!==null&&bundlers>=.15)labels.push('Bundler indicator '+(bundlers*100).toFixed(0)+'%');
+ if(holders!==null&&holders>=.5)labels.push('Top-10 holders '+(holders*100).toFixed(0)+'%');
+ if(!labels.length)return el('div','risk-note unknown','Bundler/holder checks unavailable · research only');
+ return el('div','risk-note','⚠ GMGN provider-reported: '+labels.join(' · ')+' · review needed');
+}
+function flowBar(row){
+ const flow=buySellMix(row),wrap=el('div','flow-wrap');
+ if(!flow){wrap.append(el('div','flow-caption','5m buys / sells unavailable · no activity estimate'));return wrap;}
+ const title=el('div','flow-caption','5m BUY/SELL FLOW · '+flow.label+' · '+flow.buys+' buys / '+flow.sells+' sells');
+ const track=el('div','flow-meter');
+ track.setAttribute('role','img');track.setAttribute('aria-label',flow.buyShare+'% buy transactions, '+(100-flow.buyShare).toFixed(1)+'% sell transactions over five minutes');
+ const buy=el('div','flow-buy');buy.style.width=flow.buyShare+'%';const sell=el('div','flow-sell');sell.style.width=(100-flow.buyShare)+'%';track.append(buy,sell);
+ track.title=flow.buys+' buys, '+flow.sells+' sells (provider-reported count, not wallet ownership)';
+ wrap.append(title,track);return wrap;
+}
 function tokenCard(row,{traction=false,maxCap=null,event=null}={}){
  const wrap=el('div','token-card');wrap.dataset.mint=row.contract;const top=el('div','token-item');const inspect=button('',()=>scanToken(row.contract),'token-open');inspect.setAttribute('aria-label',`Inspect ${row.symbol} ${row.contract}`);
  const content=el('span','token-meta');const title=el('span','token-name',row.symbol);title.append(el('small','',` · ${row.name||''}`));
  content.append(title,el('div','token-address',short(row.contract)+` · ${row.source||row.provider}`));
- const m=market(row.contract)||row,price=el('span','token-values');price.append(el('strong','',fmt(m.market_cap)),el('span','',m.volume_5m!=null?`5m ${fmt(m.volume_5m)}`:freshness(m.observed_at)));inspect.append(imageFor({...row,image_url:row.image_url||m.image_url}),content,price);top.append(inspect);wrap.append(top);
+ const m=market(row.contract)||row,price=el('span','token-values');price.append(el('strong','',fmt(m.market_cap)),el('span','',m.volume_5m!=null?`5m ${fmt(m.volume_5m)}`:freshness(m.observed_at)));inspect.append(imageFor({...row,image_url:row.image_url||m.image_url}),content,price);top.append(inspect);wrap.append(top);const note=riskNote(row);if(note)wrap.append(note);
  if(traction){
-  wrap.append(capBar(m.market_cap,maxCap));
-  const label=event?`${event.kind.replaceAll('_',' ')} · ${event.change_pct>0?'+':''}${event.change_pct}% observed`:'Collecting comparable snapshots';
-  const status=el('span','traction-indicator'+(event?.change_pct<0?' down':event?'':' unknown'),label);
-  wrap.dataset.activity=event?.kind||'BASELINE';wrap.append(status);
+  if(state.tractionMode==='flow')wrap.append(flowBar({...row,...m,buys_5m:m.buys_5m??row.buys_5m,sells_5m:m.sells_5m??row.sells_5m}));
+  else wrap.append(capBar(m.market_cap,maxCap));
+  const signal=tractionSignal({...row,...m,price_change_5m_pct:m.price_change_5m_pct??row.price_change_5m_pct});
+  const label=event?event.kind.replaceAll('_',' ')+' · '+(event.change_pct>0?'+':'')+event.change_pct+'% observed since prior snapshot':
+   signal?signal.label+' · '+signal.source:'Current 5m transactions shown; volume trend requires two observations';
+  const status=el('span','traction-indicator'+(event?.change_pct<0||signal?.direction==='down'?' down':event||signal?.direction==='up'?'':' unknown'),label);
+  wrap.dataset.activity=event?.kind||signal?.direction||'BASELINE';wrap.append(status);
  }
  const actions=tokenActions({...row,socials:row.socials?.length?row.socials:m.socials,source_url:row.source_url||m.source_url});wrap.append(actions);
  return wrap;
@@ -63,7 +85,9 @@ function renderTokens(){
  const oldScroll=root.scrollTop,fragment=document.createDocumentFragment();
  for(const row of state.rows.slice(0,60)){
   const m=market(row.contract)||row,known=store.tokenMeta(row.contract)||{},resolved={...known,...row,
-   image_url:row.image_url||m.image_url||known.image_url||null};
+   image_url:row.image_url||m.image_url||known.image_url||null,
+   socials:row.socials?.length?row.socials:m.socials?.length?m.socials:known.socials||[],
+   source_url:row.source_url||m.source_url||known.source_url||null};
   let card=previous.get(row.contract);
   if(!card){card=tokenCard(resolved);}else{
    const number=card.querySelector('.token-values strong'),detail=card.querySelector('.token-values span');
@@ -93,7 +117,14 @@ function renderTraction(){
  const rows=rankTractionRows(state.rows,state.quotes,24),latest=latestActivityByMint(store.events());
  if(!rows.length){root.append(el('p','empty','Awaiting confirmed Pump.fun observations.'));return}
  const maxCap=Math.max(0,...rows.map(r=>finite(market(r.contract)?.market_cap??r.market_cap)||0));
- root.append(el('p','support','Observed 5m volume order · market-cap bars relative to highest displayed · no price prediction'));
+ const head=el('div','traction-tools');
+ head.append(el('span','support','Sorted by observed 5m volume · provider data may be cached'));
+ const modes=el('div','traction-modes');
+ for(const [mode,label] of [['flow','5m BUY/SELL FLOW'],['cap','Market cap scale']]){
+  const choice=button(label,()=>{state.tractionMode=mode;renderTraction()},'mode-button'+(state.tractionMode===mode?' active':''));
+  choice.setAttribute('aria-pressed',String(state.tractionMode===mode));modes.append(choice);
+ }
+ head.append(modes);root.append(head);
  for(const row of rows){
   const m=market(row.contract)||row,known=store.tokenMeta(row.contract)||{};
   root.append(tokenCard({...known,...row,image_url:row.image_url||m.image_url||known.image_url||null,
@@ -115,15 +146,22 @@ async function refreshMissingMetadata(){
  if(metadataBusy||Date.now()<nextMetadataAt)return;
  const targets=[...new Set([...store.watched().map(k=>k.startsWith('sol:')?k.slice(4):k),
   ...(state.selected?[state.selected.mint]:[]),...state.rows.slice(0,30).map(r=>r.contract)])];
- const now=Date.now(),mint=targets.find(x=>!store.tokenMeta(x)?.image_url && now-(metadataAttempts.get(x)||0)>600000);
- if(!mint)return;
- metadataBusy=true;nextMetadataAt=now+7000;metadataAttempts.set(mint,now);
- try{const meta=await client.pumpMetadata(mint);
-  if(meta&&(meta.image_url||meta.socials?.length)){
-   store.saveTokenMeta(mint,meta);renderTokens();
-   if(state.active==='traction')renderTraction();if(state.active==='watch')renderWatch();
+ const now=Date.now();
+ const missing=targets.filter(x=>{
+  const found=store.tokenMeta(x)?.image_url;
+  return (!found||brokenArtwork.has(found))&&now-(metadataAttempts.get(x)||0)>600000;
+ }).slice(0,2);
+ if(!missing.length)return;
+ metadataBusy=true;nextMetadataAt=now+4000;
+ for(const mint of missing)metadataAttempts.set(mint,now);
+ try{const results=await Promise.allSettled(missing.map(mint=>client.pumpMetadata(mint)));
+  for(let i=0;i<results.length;i++){
+   const meta=results[i].status==='fulfilled'?results[i].value:null;
+   if(meta&&(meta.image_url||meta.socials?.length))store.saveTokenMeta(missing[i],meta);
   }
- }catch{ /* Optional source: preserve market metrics if Pump.fun is unavailable */ }finally{metadataBusy=false}
+  renderTokens();if(state.active==='traction')renderTraction();if(state.active==='watch')renderWatch();
+ }catch{ /* Optional metadata source unavailable: preserve market evidence */ }
+ finally{metadataBusy=false}
 }
 function recordSnapshot(row){store.saveTokenMeta(row.contract,row);const norm=normalizeRadarRow(row),old=store.recentSnapshot(norm.market_key);if(old){const events=compareSnapshots(old,norm);if(events.length){store.saveEvents(events);if(state.active==='traction')character('ACTIVITY')}}store.saveSnapshot(norm.market_key,norm)}
 async function refreshQuotes(){if(state.quoteBusy||Date.now()<state.quoteRetryAt)return;const keys=[...new Set([...store.watched().map(k=>k.slice(4)),...state.rows.map(r=>r.contract),...(state.selected?[state.selected.mint]:[])])];if(!keys.length){sourceStatus();return}
