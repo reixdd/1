@@ -34,3 +34,16 @@ export function compareSnapshots(a,b){
  return events;
 }
 export function uniqueEvents(events){return [...new Map((events||[]).map(x=>[x.event_id,x])).values()]}
+
+/** Actual five-minute transaction mix, available from a single provider snapshot. */
+export function buySellMix(row){
+ const buys=finite(row?.buys_5m),sells=finite(row?.sells_5m);
+ if(buys===null||sells===null||buys<0||sells<0||buys+sells<=0)return null;
+ const buyShare=Math.round(buys/(buys+sells)*1000)/10;
+ return {buys,sells,buyShare,total:buys+sells,label:buyShare>60?'BUY-HEAVY':buyShare<40?'SELL-HEAVY':'BALANCED'};
+}
+/** Five-minute price movement (provider field, not predicted volume growth). */
+export function tractionSignal(row){
+ const value=finite(row?.price_change_5m_pct);if(value===null)return null;
+ return {direction:value>0?'up':value<0?'down':'flat',label:'5m price '+(value>0?'+':value<0?'−':'')+Math.abs(value).toFixed(1)+'%',source:'provider price change'};
+}
