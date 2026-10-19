@@ -1,7 +1,7 @@
 name: MIKA Windows checks
 on:
   push:
-    branches: [mika-isolated-project, mika-v02-research-upgrade, mika-v03-public-web-architecture]
+    branches: [mika-isolated-project, mika-v02-research-upgrade, mika-v03-public-web-architecture, mika-v031-scan-regression-fix]
     paths:
       - 'mika/**'
       - '.github/workflows/mika-windows.yml'
