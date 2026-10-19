@@ -1,21 +1,32 @@
 /** Risk evidence is never established by the language model. */
 const unwrap=val=>val?.data?.data??val?.data??val;
-const present=(obj,key)=>Object.hasOwn(obj,key) && obj[key]!==null && obj[key]!==undefined;
+const present=(obj,key)=>obj && Object.hasOwn(obj,key) && obj[key]!==null && obj[key]!==undefined;
+/** Provider rates with ambiguous units are not interpreted as percentages. */
+export function providerRatio(value){
+ const n=Number(value);return value==null||value===''||!Number.isFinite(n)||n<0||n>1?null:n;
+}
 export function extractGMGNEvidence(bundle){
  if(bundle?.security?.ok===false)return [];
  const src=unwrap(bundle?.security);if(!src||typeof src!=='object'||Array.isArray(src))return [];
  const fields=[
   ['renounced_mint','mint_authority',value=>value===false?'HIGH':'NONE'],
   ['renounced_freeze_account','freeze_authority',value=>value===false?'HIGH':'NONE'],
-  ['top_10_holder_rate','holder_concentration',value=>Number(value)>1?'UNKNOWN':Number(value)>=0.8?'HIGH':Number(value)>=0.5?'MEDIUM':'NONE'],
-  ['bundler_trader_amount_rate','bundler_rate',value=>Number(value)>1?'UNKNOWN':Number(value)>0.5?'HIGH':Number(value)>0.15?'MEDIUM':'NONE'],
-  ['suspected_insider_hold_rate','insider_holdings',value=>Number(value)>1?'UNKNOWN':Number(value)>0.4?'HIGH':Number(value)>0.1?'MEDIUM':'NONE'],
+  ['top_10_holder_rate','holder_concentration',value=>value>=.8?'HIGH':value>=.5?'MEDIUM':'NONE'],
+  ['bundler_trader_amount_rate','bundler_rate',value=>value>.5?'HIGH':value>.15?'MEDIUM':'NONE'],
+  ['suspected_insider_hold_rate','insider_holdings',value=>value>.4?'HIGH':value>.1?'MEDIUM':'NONE'],
   ['is_wash_trading','wash_trading',value=>value===true?'HIGH':'NONE'],
-  ['rug_ratio','rug_ratio',value=>Number(value)>=0.6?'HIGH':'NONE']
+  ['rug_ratio','rug_ratio',value=>value>=.6?'HIGH':'NONE']
  ];
- const out=[];for(const [sourceField,field,getSeverity] of fields){if(!present(src,sourceField))continue;
-   const value=src[sourceField];if(typeof value!=='boolean' && (!Number.isFinite(Number(value))||value===''))continue;
-   out.push({field,value,status:'PROVIDER_REPORTED',severity:getSeverity(value),provider:'GMGN',source_field:sourceField,observed_at:Date.now()/1000});}
+ const out=[];
+ for(const [sourceField,field,getSeverity] of fields){
+  if(!present(src,sourceField))continue;
+  const raw=src[sourceField];
+  const isBoolean=['renounced_mint','renounced_freeze_account','is_wash_trading'].includes(sourceField);
+  const value=isBoolean?(raw===true||raw==='true'?true:raw===false||raw==='false'?false:null):providerRatio(raw);
+  if(value===null&&!isBoolean){out.push({field,value:raw,status:'UNKNOWN',severity:'UNKNOWN',provider:'GMGN',source_field:sourceField,observed_at:Date.now()/1000});continue;}
+  if(value===null)continue;
+  out.push({field,value,status:'PROVIDER_REPORTED',severity:getSeverity(value),provider:'GMGN',source_field:sourceField,observed_at:Date.now()/1000});
+ }
  return out;
 }
 export function classifyRisk(findings=[]){
